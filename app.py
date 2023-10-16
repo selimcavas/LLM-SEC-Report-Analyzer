@@ -1,56 +1,26 @@
 import streamlit as st
 from dotenv import load_dotenv
-from PyPDF2 import PdfReader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
-from langchain.vectorstores import FAISS
+from langchain.agents import create_csv_agent
+from langchain.llms import OpenAI
 
-
-def get_pdf_text(pdf_docs):
-    text = ""
-    for pdf in pdf_docs:
-        pdf_reader = PdfReader(pdf)
-        for page in pdf_reader.pages:
-            text += page.extract_text()
-    return text
-
-def get_text_chunks(text):
-    text_splitter = CharacterTextSplitter(
-        separator="\n",
-        chunk_size=1000,
-        chunk_overlap=200,
-        length_function=len, 
-    )
-    chunks = text_splitter.split_text(text)
-    return chunks
-
-def get_vectorstore(text_chunks):
-    # embeddings = OpenAIEmbeddings()
-    embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
-    vectorstore = FAISS.from_texts(texts= text_chunks,embedding= embeddings)
-    return vectorstore
 
 def main():
     load_dotenv()
     st.set_page_config(page_title='SEC Filing Analyzer', page_icon=':money_with_wings:')
     st.header('SEC Filing Analyzer :money_with_wings:')
-    st.text_input('Ask a question about the SEC filings you provided:')
 
-    with st.sidebar:
-        st.subheader('Your SEC filings')
-        pdf_docs = st.file_uploader('Upload your SEC filings here and click on Process', accept_multiple_files=True)
-        if st.button('Process'):
-            with st.spinner('Processing'):
-                # get pdf text
-                raw_text = get_pdf_text(pdf_docs)
-                
-                # get the text chunks
-                text_chunks = get_text_chunks(raw_text)
+    user_csv = st.file_uploader('Upload a CSV file', type='csv')
+    
+    if user_csv is not None: 
+        user_question = st.text_input('Ask a question about your CSV') 
+        llm = OpenAI()
+        agent = create_csv_agent(llm, user_csv, verbose=True)
+        
 
-                # create vector store 
-                vectorstore = get_vectorstore(text_chunks)
-                
-
+        if user_question  is not None and user_question != "":
+            with st.spinner(text="In progress..."):
+                response = agent.run(user_question)
+                st.write(response)
 
 if __name__ == '__main__':
     main()
