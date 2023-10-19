@@ -1,7 +1,9 @@
 from traceback import print_tb
+from torch import le
 import yfinance as yf
 import pandas as pd
 import requests
+import os
 
 # This script gets the financial data from Yahoo Finance and saves it as a CSV file
 # It Does this for all the companies in the NASDAQ 100 index
@@ -39,6 +41,19 @@ def get_tickers():
     for i in range(len(main_data)):
         tickers.append(main_data[i]['symbol'])
 
+    # print(len(tickers))
+    # # sort the tickers alphabetically
+
+    # tickers.sort()
+    # # Write the tickers to a text file
+    # try:
+    #     with open('tickers.txt', 'w') as f:
+    #         for ticker in tickers:
+    #             f.write(ticker + '\n')
+    #     print(f'Successfully wrote {len(tickers)} tickers to tickers.txt')
+    # except Exception as e:
+    #     print(f'Error writing tickers to file: {e}')
+    
     return tickers
 
 if __name__ == '__main__':
