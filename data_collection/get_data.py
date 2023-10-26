@@ -1,4 +1,5 @@
 from traceback import print_tb
+from bs4 import BeautifulSoup
 from torch import le
 import yfinance as yf
 import pandas as pd
@@ -33,28 +34,31 @@ def get_csvs(ticker):
 
 
 def get_tickers():
-    headers={"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36"}
-    res=requests.get("https://api.nasdaq.com/api/quote/list-type/nasdaq100",headers=headers)
-    main_data=res.json()['data']['data']['rows']
-    tickers = []
-
-    for i in range(len(main_data)):
-        tickers.append(main_data[i]['symbol'])
-
-    # print(len(tickers))
-    # # sort the tickers alphabetically
-
-    # tickers.sort()
-    # # Write the tickers to a text file
-    # try:
-    #     with open('tickers.txt', 'w') as f:
-    #         for ticker in tickers:
-    #             f.write(ticker + '\n')
-    #     print(f'Successfully wrote {len(tickers)} tickers to tickers.txt')
-    # except Exception as e:
-    #     print(f'Error writing tickers to file: {e}')
-    
-    return tickers
+    url = 'https://www.slickcharts.com/nasdaq100'
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
+    res = requests.get(url, headers=headers)
+    if res.status_code == 200:
+        soup = BeautifulSoup(res.content, 'html.parser')
+        div = soup.find('div', {'class': 'table-responsive'})
+        if div is not None:
+            table = div.find('table', {'class': 'table table-hover table-borderless table-sm'})
+            if table is not None:
+                rows = table.tbody.find_all('tr')
+                tickers = []
+                for row in rows:
+                    ticker = row.find_all('td')[2].a.text.strip()
+                    tickers.append(ticker)
+                return tickers
+            else:
+                print('Table not found inside div')
+                return []
+        else:
+            print('Div not found on webpage')
+            return []
+    else:
+        print(f'Request failed with status code {res.status_code}')
+        print(res.content)
+        return []
 
 if __name__ == '__main__':
     tickers = get_tickers()
