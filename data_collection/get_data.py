@@ -27,8 +27,19 @@ def get_csvs(ticker):
 
     cash_stmt = company.quarterly_cashflow
 
+    # Extract the quarter information from the date and use it to create the new column names
+    income_stmt.columns = [f"{col.year}-Q{col.quarter}" for col in income_stmt.columns]
+    balance_stmt.columns = [f"{col.year}-Q{col.quarter}" for col in balance_stmt.columns]
+    cash_stmt.columns = [f"{col.year}-Q{col.quarter}" for col in cash_stmt.columns]
 
-    financials = pd.concat([income_stmt, balance_stmt, cash_stmt], axis=0)
+    try:
+        financials = pd.concat([income_stmt, balance_stmt, cash_stmt], axis=0)
+    except Exception as e:
+        return
+
+    # Remove the oldest quarter if there are 5 quarters of data
+    if len(financials.columns) >= 5:
+        financials = financials.iloc[:, 0:4]
 
     financials.to_csv(f'data_collection/CSVs/{ticker}.csv')
 
