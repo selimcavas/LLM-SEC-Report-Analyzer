@@ -1,0 +1,49 @@
+
+from dotenv import load_dotenv
+from langchain.agents import Tool, ZeroShotAgent, AgentExecutor
+from langchain.memory import ConversationBufferMemory
+from langchain import LLMChain
+from langchain.chat_models  import ChatOpenAI
+from tool.tools import csv_agent_tool
+import os
+
+load_dotenv()
+
+def run_main_agent(user_question):
+
+    tool_list = []
+
+    csv_tool = Tool(name="csv_tool", func=csv_agent_tool, description="This tool will be used to answer questions about the data inside CSV files.")
+
+    tool_list.append(csv_tool)
+
+    prefix = """
+    You are a financial data informant designed to chat with investors. 
+    You will be provided with csv files regarding company's quarterly financial data from 10-Q filings.
+    Answer the following questions as best you can, and you have access to following tools.
+    If you are asked to provide invesment idea or make suggestions, kindly respond to user saying that you are unable to make investment decisions since you are only a chatbot. 
+    """
+
+    suffix = """ Begin! 
+        
+        {chat_history}
+        Question: {input} 
+        {agent_scratchpad} """
+    
+    prompt = ZeroShotAgent.create_prompt(tool_list, prefix=prefix, suffix=suffix, input_variables=["input", "chat_history", "agent_scratchpad"])
+    memory = ConversationBufferMemory(memory_key="chat_history")
+    llm_chain = LLMChain(
+        llm=ChatOpenAI(
+            openai_api_key=os.environ.get("OPENAI_API_KEY"),
+            temperature=0,
+            verbose=True,
+            model="gpt-3.5-turbo",
+        ),
+        prompt=prompt,
+    )
+    agent = ZeroShotAgent(llm_chain=llm_chain, tools=tool_list, verbose=True)
+    agent_chain = AgentExecutor.from_agent_and_tools(
+        agent=agent, tools=tool_list, verbose=True, memory=memory
+    )
+
+    return agent_chain.run(user_question)
