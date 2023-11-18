@@ -10,6 +10,7 @@ import os
 # It Does this for all the companies in the NASDAQ 100 index
 # It takes the last 4 quarters and it gets Income Statement, Balance Sheet and Cash Flow Statement
 
+
 def get_csvs(ticker):
     # Define the stock symbol of the company you're interested in
     ticker_symbol = ticker  # Replace with the symbol of the company you want to analyze
@@ -28,9 +29,12 @@ def get_csvs(ticker):
     cash_stmt = company.quarterly_cashflow
 
     # Extract the quarter information from the date and use it to create the new column names
-    income_stmt.columns = [f"{col.year}-Q{col.quarter}" for col in income_stmt.columns]
-    balance_stmt.columns = [f"{col.year}-Q{col.quarter}" for col in balance_stmt.columns]
-    cash_stmt.columns = [f"{col.year}-Q{col.quarter}" for col in cash_stmt.columns]
+    income_stmt.columns = [
+        f"{col.year}-Q{col.quarter}" for col in income_stmt.columns]
+    balance_stmt.columns = [
+        f"{col.year}-Q{col.quarter}" for col in balance_stmt.columns]
+    cash_stmt.columns = [
+        f"{col.year}-Q{col.quarter}" for col in cash_stmt.columns]
 
     try:
         financials = pd.concat([income_stmt, balance_stmt, cash_stmt], axis=0)
@@ -46,13 +50,15 @@ def get_csvs(ticker):
 
 def get_tickers():
     url = 'https://www.slickcharts.com/nasdaq100'
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
     res = requests.get(url, headers=headers)
     if res.status_code == 200:
         soup = BeautifulSoup(res.content, 'html.parser')
         div = soup.find('div', {'class': 'table-responsive'})
         if div is not None:
-            table = div.find('table', {'class': 'table table-hover table-borderless table-sm'})
+            table = div.find(
+                'table', {'class': 'table table-hover table-borderless table-sm'})
             if table is not None:
                 rows = table.tbody.find_all('tr')
                 tickers = []
@@ -71,8 +77,17 @@ def get_tickers():
         print(res.content)
         return []
 
+
+def write_tickers():
+    tickers = get_tickers()
+    with open('tickers.txt', 'w') as file:
+        for ticker in tickers:
+            file.write(ticker + '\n')
+
+
 if __name__ == '__main__':
     tickers = get_tickers()
+    write_tickers()
     for ticker in tickers:
         try:
             get_csvs(ticker)
