@@ -51,8 +51,13 @@ with open('earning_call_links.txt', 'w') as file:
                 element = WebDriverWait(driver, 5).until(
                     EC.presence_of_element_located((By.XPATH, xpath_a)))
             except:
-                element = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.XPATH, xpath_b)))
+                try:
+                    element = WebDriverWait(driver, 5).until(
+                        EC.presence_of_element_located((By.XPATH, xpath_b)))
+                except:
+                    print(
+                        f"Element not found for index {i}. Skipping to next index.")
+                    continue
 
             # Get the href attribute of the element
             link = element.get_attribute('href')
