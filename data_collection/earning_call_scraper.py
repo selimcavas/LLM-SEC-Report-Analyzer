@@ -1,11 +1,14 @@
 import re
 from time import sleep
+import requests
 from selenium import webdriver
 from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.firefox import GeckoDriverManager
+from bs4 import BeautifulSoup
+import os
 
 
 def extract_info_from_links():
@@ -101,8 +104,28 @@ def extract_earning_call_links():
     driver.quit()
 
 
+def scrape_and_save():
+    with open('earning_call_tickers.txt', 'r') as tickers_file, open('earning_call_links.txt', 'r') as links_file:
+        tickers = tickers_file.read().splitlines()
+        links = links_file.read().splitlines()
+
+    for ticker, link in zip(tickers, links):
+        response = requests.get(link)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        article_body = soup.find('div', class_='tailwind-article-body')
+        text = ' '.join(p.get_text() for p in article_body.find_all('p'))
+
+        ticker, quarter, year = ticker.split(',')
+        directory = f'data_collection/transcripts/{ticker.upper()}'
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        with open(f'{directory}/{ticker}_{quarter}_{year}.txt', 'w') as file:
+            file.write(text)
+
+
 def main():
-    print("test")
+    scrape_and_save()
 
 
 if __name__ == "__main__":

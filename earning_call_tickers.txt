@@ -15,9 +15,9 @@ nvda,q1,2024
 nvda,q4,2023
 nvda,q3,2023
 meta,q2,2022
-fb,q1,2022
-fb,q4,2021
-fb,q3,2021
+meta,q1,2022
+meta,q4,2021
+meta,q3,2021
 googl,q2,2023
 googl,q4,2022
 googl,q3,2022
