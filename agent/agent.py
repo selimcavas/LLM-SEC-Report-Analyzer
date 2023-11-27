@@ -4,7 +4,7 @@ from langchain.agents import Tool, ZeroShotAgent, AgentExecutor
 from langchain.memory import ConversationBufferMemory
 from langchain import LLMChain
 from langchain.chat_models import ChatOpenAI
-from tool.tools import csv_agent_tool
+from tool.tools import csv_agent_tool, transcript_analyze_tool
 import os
 
 load_dotenv()
@@ -21,7 +21,18 @@ def run_main_agent(user_question):
                     Input should be a single string in JSON format. 
                     ''')
 
+    transcript_tool = Tool(name="transcript_tool", func=transcript_analyze_tool,
+                           description='''This tool is designed to handle queries related to earnings call transcripts. 
+                           When a user asks a question about an earnings call transcript, this tool will use the Pinecone vectors 
+                           which hold the earnings call transcripts to find the relevant information. 
+                           
+                           You will use the ticker, quarter, and year information to locate the correct earnings call transcript. 
+                           Once the correct transcript is identified, you will analyze and summarize the text based on the user's query. 
+                           
+                           Please ensure that you access the correct transcript file first before providing any answers to ensure accurate results.''')
+
     tool_list.append(csv_tool)
+    # tool_list.append(transcript_tool)
 
     prefix = """
     You are a financial data informant designed to chat with investors. 
