@@ -30,6 +30,13 @@ def initalize_pinecone():
 
     if index_name not in pinecone.list_indexes():
         pinecone.create_index(name=index_name, dimension=1536, metric="cosine")
+    else:
+        # If the index already exists, check if it is filled
+        index = pinecone.Index(index_name)
+        info = index.describe_index_stats()
+        vector_number = info.namespaces[""].vector_count
+        if vector_number == 4669:
+            return None
 
     file_names = os.listdir("data_collection/transcripts")
 
