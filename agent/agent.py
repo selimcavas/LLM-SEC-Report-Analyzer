@@ -32,10 +32,13 @@ def run_main_agent(user_question):
                            Please ensure that you access the correct transcript file first before providing any answers to ensure accurate results.''')
 
     tool_list.append(csv_tool)
-    # tool_list.append(transcript_tool)
+    tool_list.append(transcript_tool)
 
     prefix = """
     You are a financial data informant designed to chat with investors. 
+    If the question is not related to financial data, please respond to user saying that you are unable to answer the question since you are only a chatbot.
+    When user greets you explain what you can do briefly.
+    Only use tools if it is necessary to answer the question, otherwise try to answer the question without using tools.
     You will be provided with a csv file called combined_data.csv regarding company's quarterly financial data from 10-Q filings. 
     The csv file has columns that represent the company ticker, field, and quarters. Each company has a unique ticker and they have individual rows for each field.
     Field name format is pascal case with spaces between words, however some fields have abbreviations, if you cannot find that field try to make all letters uppercase or use plural form of words, it can sometimes be mixed as well like 'Basic EPS'.
@@ -43,7 +46,6 @@ def run_main_agent(user_question):
     If NaN values exists remove them before you do any mathematical calculation.
     Answer the following questions as best you can, and you have access to following tools.
     If you are asked to provide invesment idea or make suggestions, kindly respond to user saying that you are unable to make investment decisions since you are only a chatbot. 
-
     """
 
     suffix = """ Begin! 

@@ -1,6 +1,6 @@
 import streamlit as st
 from dotenv import load_dotenv
-from langchain.agents import create_csv_agent
+from langchain_experimental.agents.agent_toolkits import create_csv_agent
 from streamlit_chat import message
 from agent.agent import run_main_agent
 import os
@@ -28,7 +28,7 @@ def initalize_pinecone():
         index = pinecone.Index(index_name)
         info = index.describe_index_stats()
         vector_number = info.namespaces[""].vector_count
-        if vector_number == 4669:
+        if vector_number == 4675:
             return None
 
     file_names = os.listdir("data_collection/transcripts")
@@ -73,7 +73,7 @@ def initalize_pinecone():
 
 def main():
     load_dotenv()
-    initalize_pinecone()
+    # initalize_pinecone()
     st.set_page_config(page_title='SEC Filing Analyzer',
                        page_icon=':money_with_wings:')
     st.header('SEC Filing Analyzer :money_with_wings:', divider='green')
