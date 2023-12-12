@@ -1,5 +1,6 @@
 from tkinter.font import names
 from xml.etree.ElementInclude import include
+from annotated_types import doc
 from dotenv import load_dotenv
 from langchain.agents import tool, AgentType
 from langchain_experimental.agents.agent_toolkits import create_csv_agent
@@ -54,17 +55,28 @@ def transcript_analyze_tool(prompt: str) -> str:
     # load pinecone index for langchain
     # index = pinecone.Index(index_name)
 
-    # vectorstore = Pinecone.from_existing_index(
-    #    index_name, embed
+    # vectorstore = Pinecone(
+    #    index, embed, text_field
     # )
 
-    searcher = Pinecone.from_existing_index(
+    # Query the vectorized data
+    # vectorstore.similarity_search(
+    #    prompt,  # our search query
+    #    k=3,  # return 3 most relevant docs
+    #    include_metadata=True  # include metadata in results
+    # )
+
+    docsearch = Pinecone.from_existing_index(
         index_name, embed
     )
 
-    # retriever = vectorstore.as_retriever()
+    docsearch.similarity_search(
+        prompt,  # our search query
+        k=3,  # return 3 most relevant docs
+        # include_metadata=True  # include metadata in results
+    )
 
-    # Query the vectorized data
+    # retriever = vectorstore.as_retriever()
 
     # Using LangChain we pass in our model for text generation.
     llm = ChatOpenAI(
@@ -72,7 +84,7 @@ def transcript_analyze_tool(prompt: str) -> str:
     qa = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
-        retriever=searcher.as_retriever(),
+        retriever=docsearch.as_retriever(),
         return_source_documents=True,
     )
 
