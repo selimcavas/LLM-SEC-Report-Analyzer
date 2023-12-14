@@ -3,19 +3,6 @@ from dotenv import load_dotenv
 from langchain_experimental.agents.agent_toolkits import create_csv_agent
 from streamlit_chat import message
 from agent.agent import run_main_agent
-import os
-import pinecone
-from llama_index.vector_stores import PineconeVectorStore
-from llama_index.storage.storage_context import StorageContext
-from llama_index import (
-    GPTVectorStoreIndex,
-    SimpleDirectoryReader
-)
-from pathlib import Path
-from langchain.docstore.document import Document
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import Pinecone
 
 
 def main():
