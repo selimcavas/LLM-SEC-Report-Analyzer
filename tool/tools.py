@@ -72,8 +72,6 @@ def transcript_analyze_tool(prompt: str) -> str:
 
     docsearch.similarity_search(
         prompt,  # our search query
-        k=3,  # return 3 most relevant docs
-        # include_metadata=True  # include metadata in results
     )
 
     # retriever = vectorstore.as_retriever()
@@ -84,8 +82,9 @@ def transcript_analyze_tool(prompt: str) -> str:
     qa = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
-        retriever=docsearch.as_retriever(),
-        return_source_documents=True,
+        retriever=docsearch.as_retriever(
+            search_kwargs={"k": 7}),  # return 7 most relevant docs
+        # return_source_documents=True,
     )
 
     return qa(prompt)
