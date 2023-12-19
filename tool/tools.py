@@ -8,6 +8,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
 import os
 import pinecone
+import json
 from langchain.embeddings import OpenAIEmbeddings
 from llama_index.vector_stores import PineconeVectorStore
 from langchain.chains import RetrievalQA
@@ -21,12 +22,18 @@ load_dotenv()
 def csv_agent_tool(prompt: str) -> str:
     """Used to analyze CSV files."""
 
+    csv_prompt = ""
+    with open('prompts/csv_agent_prompts.json', 'r') as f:
+        csv_prompt = json.load(f)
+
     agent = create_csv_agent(
         path="combined_data.csv",
         llm=OpenAI(temperature=0),
+        agent_type=AgentType.OPENAI_FUNCTIONS,  # fix here
         max_iterations=5,
         verbose=True,
-
+        suffix=str(csv_prompt),
+        include_df_in_prompt=None,
     )
 
     return agent(prompt)
