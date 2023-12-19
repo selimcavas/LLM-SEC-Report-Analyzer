@@ -1,0 +1,38 @@
+[
+    {
+        "additional_info": "Inside the CSV file, you have only 7 columns. By using the CSV file, get relevant data. Inside the CSV file you have access to the following columns: Ticker, Field, 2023-Q2, 2023-Q1, 2022-Q4, 2022-Q3, 2023-Q3. In the Ticker column, you can find the company ticker. You have 153 different fields in the Fields column which are: [Tax Effect Of Unusual Items, Tax Rate For Calcs, Normalized EBITDA, Net Income From Continuing Operation Net Minority Interest, Reconciled Depreciation, Reconciled Cost Of Revenue, EBITDA, EBIT, Net Interest Income, Interest Expense, Interest Income, Normalized Income, Net Income From Continuing And Discontinued Operation, Total Expenses, Total Operating Income As Reported, Diluted Average Shares, Basic Average Shares, Diluted EPS, Basic EPS, Diluted NI Availto Com Stockholders, Net Income Common Stockholders, Net Income, Net Income Including Noncontrolling Interests, Net Income Continuous Operations, Tax Provision, Pretax Income, Other Income Expense, Other Non Operating Income Expenses, Net Non Operating Interest Income Expense, Interest Expense Non Operating, Interest Income Non Operating, Operating Income, Operating Expense, Research And Development, Selling General And Administration, Gross Profit, Cost Of Revenue, Total Revenue, Operating Revenue, Ordinary Shares Number, Share Issued, Net Debt, Total Debt, Tangible Book Value, Invested Capital, Working Capital, Net Tangible Assets, Common Stock Equity, Total Capitalization, Total Equity Gross Minority Interest, Stockholders Equity, Gains Losses Not Affecting Retained Earnings, Other Equity Adjustments, Retained Earnings, Capital Stock, Common Stock, Total Liabilities Net Minority Interest, Total Non Current Liabilities Net Minority Interest, Other Non Current Liabilities, Tradeand Other Payables Non Current, Long Term Debt And Capital Lease Obligation, Long Term Debt, Current Liabilities, Other Current Liabilities, Current Deferred Liabilities, Current Deferred Revenue, Current Debt And Capital Lease Obligation, Current Debt, Other Current Borrowings, Commercial Paper, Payables And Accrued Expenses, Payables, Accounts Payable, Total Assets, Total Non Current Assets, Other Non Current Assets, Investments And Advances, Other Investments, Investmentin Financial Assets, Available For Sale Securities, Net PPE, Accumulated Depreciation, Gross PPE, Leases, Machinery Furniture Equipment, Land And Improvements, Properties, Current Assets, Other Current Assets, Inventory, Finished Goods, Raw Materials, Receivables, Other Receivables, Accounts Receivable, Cash Cash Equivalents And Short Term Investments, Other Short Term Investments, Cash And Cash Equivalents, Cash Equivalents, Cash Financial, Free Cash Flow, Repurchase Of Capital Stock, Repayment Of Debt, Issuance Of Debt, Capital Expenditure, Interest Paid Supplemental Data, Income Tax Paid Supplemental Data, End Cash Position, Beginning Cash Position, Changes In Cash, Financing Cash Flow, Cash Flow From Continuing Financing Activities, Net Other Financing Charges, Cash Dividends Paid, Common Stock Dividend Paid, Net Common Stock Issuance, Common Stock Payments, Net Issuance Payments Of Debt, Net Short Term Debt Issuance, Short Term Debt Payments, Short Term Debt Issuance, Net Long Term Debt Issuance, Long Term Debt Payments, Long Term Debt Issuance, Investing Cash Flow, Cash Flow From Continuing Investing Activities, Net Other Investing Changes, Net Investment Purchase And Sale, Sale Of Investment, Purchase Of Investment, Net Business Purchase And Sale, Purchase Of Business, Net PPE Purchase And Sale, Purchase Of PPE, Operating Cash Flow, Cash Flow From Continuing Operating Activities, Change In Working Capital, Change In Other Working Capital, Change In Other Current Liabilities, Change In Other Current Assets, Change In Payables And Accrued Expense, Change In Payable, Change In Account Payable, Change In Inventory, Change In Receivables, Changes In Account Receivables, Other Non Cash Items, Stock Based Compensation, Deferred Tax, Deferred Income Tax, Depreciation Amortization Depletion, Depreciation And Amortization, Net Income From Continuing Operations]. In the 2023-Q2, 2023-Q1, 2022-Q4, 2022-Q3 columns, you can find the data for the corresponding fields. Here are some input and query examples for you to reference from:"
+    },
+    {
+        "input": "Can you list top 5 companies based on the EBITDA data in 2023 q2?",
+        "Python Query": "df.sort_values('2023-Q2', ascending=False).head(5) if df['Field'] == 'EBITDA'"
+    },
+    {
+        "input": "Get me both EBIT and EBITDA of AAPL company in 2022 q4?",
+        "Python Query": "df[(df['Ticker'] == 'AAPL') & (df['Field'].isin(['EBIT', 'EBITDA']))][['Field', '2022-Q4']]"
+    },
+    {
+        "input": "What was the Net Income From Continuing Operation Net Minority Interest of AAPL company in 2023 q3 term?",
+        "Python Query": "df[(df['Ticker'] == 'AAPL') & (df['Field'] == 'Net Income From Continuing Operation Net Minority Interest')]['2023-Q3']"
+    },
+    {
+        "input": "Can you get me the whole data you have?",
+        "Python Query": "Unfortunately, I'm unable to display the whole database. Please specify the data or field you want to see in a specific quarter and year."
+    },
+    {
+        "input": "Can you list the top 10 companies that have the highest change in EBITDA between 2023 q2 and q3?",
+        "Python Query": "df['EBITDA_change'] = df['2023-Q2'] - df['2023-Q3']; df[df['Field'] == 'EBITDA'].sort_values('EBITDA_change', ascending=False).head(10)"
+    },
+    {
+        "input": "Get me the top 5 companies tickers with the highest current deferred revenue in 2023 q2?",
+        "Python Query": "df[df['Field'] == 'Current Deferred Revenue'].sort_values('2023-Q2', ascending=False).head(5)['Ticker']"
+    },
+    {
+        "input": "What is the average EBITDA of AAPL company over 2022-Q4, 2023-Q1, and 2023-Q2?",
+        "Python Query": "df[(df['Ticker'] == 'AAPL') & (df['Field'] == 'EBITDA')][['2022-Q4', '2023-Q1', '2023-Q2']].mean(axis=1)"
+    },
+    {
+        "input": "What are  the companies with the highest average Long Term Debt of over 2023-Q2, 2023-Q1, 2022-Q4, 2022-Q3, 2023-Q3 ?",
+        "Python Query": "df[df['Field'] == 'Long Term Debt'][['Ticker', '2023-Q2', '2023-Q1', '2022-Q4', '2022-Q3', '2023-Q3']].assign(avg_debt=lambda x: x[['2023-Q2', '2023-Q1', '2022-Q4', '2022-Q3', '2023-Q3']].mean(axis=1)).sort_values('avg_debt', ascending=False)"
+    }
+    
+]
