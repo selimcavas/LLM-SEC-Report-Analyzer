@@ -18,8 +18,7 @@ from langchain.vectorstores import Pinecone
 load_dotenv()
 
 
-@tool
-def csv_agent_tool(prompt: str) -> str:
+def csv_agent_tool():
     """Used to analyze CSV files."""
 
     csv_prompt = ""
@@ -36,10 +35,9 @@ def csv_agent_tool(prompt: str) -> str:
         include_df_in_prompt=None,
     )
 
-    return agent(prompt)
+    return agent
 
 
-@tool
 def transcript_analyze_tool(prompt: str) -> str:
     """Used to query data from a Pinecone index."""
 
