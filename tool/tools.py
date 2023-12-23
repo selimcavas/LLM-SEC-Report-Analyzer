@@ -67,22 +67,6 @@ def transcript_analyze_tool(prompt: str) -> str:
         model=model_name,
         openai_api_key=os.environ.get("OPENAI_API_KEY")
     )
-    # This text field represents the field that the text contents of your document are stored in
-    # text_field = "text"
-
-    # load pinecone index for langchain
-    # index = pinecone.Index(index_name)
-
-    # vectorstore = Pinecone(
-    #    index, embed, text_field
-    # )
-
-    # Query the vectorized data
-    # vectorstore.similarity_search(
-    #    prompt,  # our search query
-    #    k=3,  # return 3 most relevant docs
-    #    include_metadata=True  # include metadata in results
-    # )
 
     docsearch = Pinecone.from_existing_index(
         index_name, embed
@@ -91,8 +75,6 @@ def transcript_analyze_tool(prompt: str) -> str:
     docsearch.similarity_search(
         prompt,  # our search query
     )
-
-    # retriever = vectorstore.as_retriever()
 
     # Using LangChain we pass in our model for text generation.
     llm = ChatOpenAI(
