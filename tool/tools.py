@@ -1,9 +1,10 @@
+from pyexpat import model
 from tkinter.font import names
 from xml.etree.ElementInclude import include
 from annotated_types import doc
 from dotenv import load_dotenv
 from langchain.agents import tool, AgentType
-from langchain_experimental.agents.agent_toolkits import create_csv_agent
+from langchain_experimental.agents.agent_toolkits import create_csv_agent, create_pandas_dataframe_agent
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
 import os
@@ -14,20 +15,30 @@ from llama_index.vector_stores import PineconeVectorStore
 from langchain.chains import RetrievalQA
 from torch import embedding
 from langchain.vectorstores import Pinecone
+import pandas as pd
 
 load_dotenv()
 
 
-def csv_agent_tool():
+@tool
+def csv_agent_tool(prompt: str) -> str:
     """Used to analyze CSV files."""
 
     csv_prompt = ""
     with open('prompts/csv_agent_prompts.json', 'r') as f:
         csv_prompt = json.load(f)
 
-    agent = create_csv_agent(
-        path="combined_data.csv",
-        llm=OpenAI(temperature=0),
+    df = pd.read_csv('combined_data.csv')
+
+    print('entered csv agent')
+    agent = create_pandas_dataframe_agent(
+        df=df,
+        llm=ChatOpenAI(
+            openai_api_key=os.environ.get("OPENAI_API_KEY"),
+            temperature=0,
+            model="gpt-3.5-turbo",
+            model_kwargs={"stop": ["\Observation:"]},
+        ),
         agent_type=AgentType.OPENAI_FUNCTIONS,  # fix here
         max_iterations=5,
         verbose=True,
@@ -35,11 +46,13 @@ def csv_agent_tool():
         include_df_in_prompt=None,
     )
 
-    return agent
+    return agent.run(prompt)
 
 
 def transcript_analyze_tool(prompt: str) -> str:
     """Used to query data from a Pinecone index."""
+
+    print('entered transcript tool')
 
     environment = "gcp-starter"
 
@@ -93,3 +106,10 @@ def transcript_analyze_tool(prompt: str) -> str:
     )
 
     return qa(prompt)
+
+
+# if __name__ == "__main__":
+#    response = csv_agent_tool(
+#        "Can you list top 5 companies based on the EBITDA data in 2023 q2? Also get the ebitda values aswell")
+#    print(response)
+#
