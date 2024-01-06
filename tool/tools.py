@@ -37,6 +37,7 @@ def csv_agent_tool(prompt: str) -> str:
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
             temperature=0,
             model="gpt-3.5-turbo",
+            # model="gpt-4",
             model_kwargs={"stop": ["\Observation:"]},
         ),
         agent_type=AgentType.OPENAI_FUNCTIONS,  # fix here

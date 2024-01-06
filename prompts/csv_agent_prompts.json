@@ -4,35 +4,35 @@
     },
     {
         "input": "Can you list top 5 companies based on the EBITDA data in 2023 q2?",
-        "Python Query": "df.sort_values('2023-Q2', ascending=False).head(5) if df['Field'] == 'EBITDA'"
+        "python_repl_ast": "df.sort_values('2023-Q2', ascending=False).head(5) if df['Field'] == 'EBITDA'"
     },
     {
         "input": "Get me both EBIT and EBITDA of AAPL company in 2022 q4?",
-        "Python Query": "df[(df['Ticker'] == 'AAPL') & (df['Field'].isin(['EBIT', 'EBITDA']))][['Field', '2022-Q4']]"
+        "python_repl_ast": "df[(df['Ticker'] == 'AAPL') & (df['Field'].isin(['EBIT', 'EBITDA']))][['Field', '2022-Q4']]"
     },
     {
         "input": "What was the Net Income From Continuing Operation Net Minority Interest of AAPL company in 2023 q3 term?",
-        "Python Query": "df[(df['Ticker'] == 'AAPL') & (df['Field'] == 'Net Income From Continuing Operation Net Minority Interest')]['2023-Q3']"
+        "python_repl_ast": "df[(df['Ticker'] == 'AAPL') & (df['Field'] == 'Net Income From Continuing Operation Net Minority Interest')]['2023-Q3']"
     },
     {
         "input": "Can you get me the whole data you have?",
-        "Python Query": "Unfortunately, I'm unable to display the whole database. Please specify the data or field you want to see in a specific quarter and year."
+        "python_repl_ast": "Unfortunately, I'm unable to display the whole database. Please specify the data or field you want to see in a specific quarter and year."
     },
     {
         "input": "Can you list the top 10 companies that have the highest change in EBITDA between 2023 q2 and q3?",
-        "Python Query": "df['EBITDA_change'] = df['2023-Q2'] - df['2023-Q3']; df[df['Field'] == 'EBITDA'].sort_values('EBITDA_change', ascending=False).head(10)"
+        "python_repl_ast": "df['EBITDA_change'] = df['2023-Q2'] - df['2023-Q3']; df[df['Field'] == 'EBITDA'].sort_values('EBITDA_change', ascending=False).head(10)"
     },
     {
         "input": "Get me the top 5 companies tickers with the highest current deferred revenue in 2023 q2?",
-        "Python Query": "df[df['Field'] == 'Current Deferred Revenue'].sort_values('2023-Q2', ascending=False).head(5)['Ticker']"
+        "python_repl_ast": "df[df['Field'] == 'Current Deferred Revenue'].sort_values('2023-Q2', ascending=False).head(5)['Ticker']"
     },
     {
         "input": "What is the average EBITDA of AAPL company over 2022-Q4, 2023-Q1, and 2023-Q2?",
-        "Python Query": "df[(df['Ticker'] == 'AAPL') & (df['Field'] == 'EBITDA')][['2022-Q4', '2023-Q1', '2023-Q2']].mean(axis=1)"
+        "python_repl_ast": "df[(df['Ticker'] == 'AAPL') & (df['Field'] == 'EBITDA')][['2022-Q4', '2023-Q1', '2023-Q2']].mean(axis=1)"
     },
     {
         "input": "What are  the companies with the highest average Long Term Debt of over 2023-Q2, 2023-Q1, 2022-Q4, 2022-Q3, 2023-Q3 ?",
-        "Python Query": "df[df['Field'] == 'Long Term Debt'][['Ticker', '2023-Q2', '2023-Q1', '2022-Q4', '2022-Q3', '2023-Q3']].assign(avg_debt=lambda x: x[['2023-Q2', '2023-Q1', '2022-Q4', '2022-Q3', '2023-Q3']].mean(axis=1)).sort_values('avg_debt', ascending=False)"
+        "python_repl_ast": "df[df['Field'] == 'Long Term Debt'][['Ticker', '2023-Q2', '2023-Q1', '2022-Q4', '2022-Q3', '2023-Q3']].assign(avg_debt=lambda x: x[['2023-Q2', '2023-Q1', '2022-Q4', '2022-Q3', '2023-Q3']].mean(axis=1)).sort_values('avg_debt', ascending=False)"
     }
     
 ]
