@@ -11,7 +11,8 @@ def main():
                        page_icon=':money_with_wings:')
     st.header('SEC Filing Analyzer :money_with_wings:', divider='green')
 
-    user_question = st.chat_input('Ask a question about your CSV')
+    user_question = st.chat_input(
+        'Ask a question about financial statements or earnings call transcripts.')
 
     if user_question is not None and user_question != "":
         with st.spinner(text="In progress..."):
