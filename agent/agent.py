@@ -7,6 +7,7 @@ from langchain.chat_models import ChatOpenAI
 from tool.tools import csv_agent_tool, transcript_analyze_tool
 from langchain.prompts import PromptTemplate
 import os
+from langchain_community.chat_models.fireworks import ChatFireworks
 
 load_dotenv()
 
@@ -40,17 +41,27 @@ def run_main_agent(user_question):
       
     '''
 
-    llm = ChatOpenAI(
-        openai_api_key=os.environ.get("OPENAI_API_KEY"),
-        temperature=0,
-        model="gpt-3.5-turbo",
-        model_kwargs={"stop": ["\Observation:"]},
+    # llm = ChatOpenAI(
+    #     openai_api_key=os.environ.get("OPENAI_API_KEY"),
+    #     temperature=0,
+    #     model="gpt-3.5-turbo",
+    #     model_kwargs={"stop": ["\Observation:"]},
+    # )
+
+    MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
+
+    chat_model = ChatFireworks(
+        model=MODEL_ID,
+        model_kwargs={
+            "temperature": 0,
+            "max_tokens": 2048,
+            "top_p": 1,
+        }
     )
 
     agent = initialize_agent(
         tools=tool_list,
-        llm=llm,
-        agent=AgentType.OPENAI_FUNCTIONS,
+        llm=chat_model,
         verbose=True,
         handle_parsing_errors=True,
         early_stopping_method="generate",

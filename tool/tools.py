@@ -4,20 +4,24 @@ from xml.etree.ElementInclude import include
 from annotated_types import doc
 from dotenv import load_dotenv
 from langchain.agents import tool, AgentType
-from langchain_experimental.agents.agent_toolkits import create_csv_agent, create_pandas_dataframe_agent
+from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
 import os
 import pinecone
 import json
 from langchain.embeddings import OpenAIEmbeddings
-from llama_index.vector_stores import PineconeVectorStore
+from llama_index.vector_stores.pinecone import PineconeVectorStore
 from langchain.chains import RetrievalQA
 from torch import embedding
 from langchain.vectorstores import Pinecone
 import pandas as pd
+from langchain_community.chat_models.fireworks import ChatFireworks
 
 load_dotenv()
+
+
+MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
 
 @tool
@@ -30,6 +34,15 @@ def csv_agent_tool(prompt: str) -> str:
 
     df = pd.read_csv('combined_data.csv')
 
+    chat_model = ChatFireworks(
+        model=MODEL_ID,
+        model_kwargs={
+            "temperature": 0,
+            "max_tokens": 2048,
+            "top_p": 1,
+        }
+    )
+
     print('entered csv agent')
     agent = create_pandas_dataframe_agent(
         df=df,
@@ -40,6 +53,7 @@ def csv_agent_tool(prompt: str) -> str:
             # model="gpt-4",
             model_kwargs={"stop": ["\Observation:"]},
         ),
+        # llm=chat_model,
         agent_type=AgentType.OPENAI_FUNCTIONS,  # fix here
         max_iterations=5,
         verbose=True,
