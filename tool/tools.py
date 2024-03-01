@@ -8,13 +8,15 @@ from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
 import os
-import pinecone
 import json
-from langchain.embeddings import OpenAIEmbeddings
-from llama_index.vector_stores.pinecone import PineconeVectorStore
+from langchain_openai import OpenAIEmbeddings
+
 from langchain.chains import RetrievalQA
-from torch import embedding
-from langchain.vectorstores import Pinecone
+
+from pinecone import Pinecone
+#from langchain.vectorstores import Pinecone
+from langchain_pinecone import PineconeVectorStore
+
 import pandas as pd
 from langchain_community.chat_models.fireworks import ChatFireworks
 
@@ -69,12 +71,13 @@ def transcript_analyze_tool(prompt: str) -> str:
 
     print('entered transcript tool')
 
+    api_key = os.environ['PINECONE_API_KEY']
     environment = "gcp-starter"
 
-    api_key = os.environ['PINECONE_API_KEY']
-
     index_name = "sec-filing-analyzer"
-    pinecone.init(api_key=api_key, environment=environment)
+    
+    # Create an instance of the Pinecone class
+    pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"), environment=environment)
 
     model_name = 'text-embedding-ada-002'
 
@@ -83,11 +86,13 @@ def transcript_analyze_tool(prompt: str) -> str:
         openai_api_key=os.environ.get("OPENAI_API_KEY")
     )
 
-    docsearch = Pinecone.from_existing_index(
-        index_name, embed
-    )
+    # Use the Pinecone instance to interact with the index
+    #docsearch = pc.from_existing_index(index_name, embed)
+    text_field = "text"
 
-    docsearch.similarity_search(
+    vectorstore = PineconeVectorStore.from_existing_index(index_name, embed,text_field)
+
+    vectorstore.similarity_search(
         prompt,  # our search query
     )
 
@@ -97,7 +102,7 @@ def transcript_analyze_tool(prompt: str) -> str:
     qa = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
-        retriever=docsearch.as_retriever(
+        retriever=vectorstore.as_retriever(
             search_kwargs={"k": 7}),  # return 7 most relevant docs
         # return_source_documents=True,
     )
