@@ -1,0 +1,40 @@
+[
+    {"additional_info": "Do not EVER display the whole database. Instead ask the user to provide a more specific question"},
+    {
+        "input": "Can you get me the whole data you have?",
+        "Output": "Unfortunately, I'm unable to display the whole database."
+    },
+    {
+        "input": "Can you list top 5 companies based on the EBITDA data in 2023 q2?",
+        "query": "SELECT * FROM fdata WHERE Field = 'EBITDA' ORDER BY `2023-Q2` DESC LIMIT 5"
+    },
+    {
+        "input": "Get me both EBIT and EBITDA of AAPL company in 2022 q4?",
+        "query": "SELECT Field, `2022-Q4` FROM fdata WHERE Ticker = 'AAPL' AND Field IN ('EBIT', 'EBITDA')"
+    },
+    {
+        "input": "What was the Net Income From Continuing Operation Net Minority Interest of AAPL company in 2023 q3 term?",
+        "query": "SELECT `2023-Q3` FROM fdata WHERE Ticker = 'AAPL' AND Field = 'Net Income From Continuing Operation Net Minority Interest'"
+    },
+    {
+        "input": "Can you list the top 10 companies that have the highest change in EBITDA between 2023 q2 and q3?",
+        "query": "SELECT * FROM fdata WHERE Field = 'EBITDA' ORDER BY (`2023-Q2` - `2023-Q3`) DESC LIMIT 10"
+    },
+    {
+        "input": "Get me the top 5 companies tickers with the highest current deferred revenue in 2023 q2?",
+        "query": "SELECT Ticker FROM fdata WHERE Field = 'Current Deferred Revenue' ORDER BY `2023-Q2` DESC LIMIT 5"
+    },
+    {
+        "input": "What is the average EBITDA of AAPL company over 2022-Q4, 2023-Q1, and 2023-Q2?", 
+        "query": "SELECT ((`2022-Q4` + `2023-Q1` + `2023-Q2`) / 3) AS avg_val FROM fdata WHERE Ticker = 'AAPL' AND Field = 'EBITDA' "
+    },
+    {
+        "input": "What are the companies with the highest average Long Term Debt of over 2023-Q2, 2023-Q1, 2022-Q4, 2022-Q3, 2023-Q3 ?",
+        "query": "SELECT Ticker, ((COALESCE(`2023-Q2`, 0) + COALESCE(`2023-Q1`, 0) + COALESCE(`2022-Q4`, 0) + COALESCE(`2022-Q3`, 0) + COALESCE(`2023-Q3`, 0)) / 5.0) AS avg_debt FROM fdata WHERE Field = 'Long Term Debt' GROUP BY Ticker ORDER BY avg_debt DESC"
+    },
+    {
+        "input": "What is the total diluted eps of apple over all quarters?",
+        "query": "SELECT (`2022-Q3` + `2022-Q4` + `2023-Q1` + `2023-Q2` + `2023-Q3`) FROM fdata WHERE Ticker = 'AAPL' AND Field = 'Diluted EPS' "
+    }
+
+]

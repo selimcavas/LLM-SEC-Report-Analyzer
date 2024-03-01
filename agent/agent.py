@@ -4,7 +4,7 @@ from langchain.agents import Tool, ZeroShotAgent, AgentExecutor, AgentType, init
 from langchain.memory import ConversationBufferMemory
 from langchain import LLMChain
 from langchain.chat_models import ChatOpenAI
-from tool.tools import csv_agent_tool, transcript_analyze_tool
+from tool.tools import transcript_analyze_tool, text2sql_tool
 from langchain.prompts import PromptTemplate
 import os
 from langchain_community.chat_models.fireworks import ChatFireworks
@@ -16,16 +16,15 @@ def run_main_agent(user_question):
 
     tool_list = []
 
-    csv_tool = Tool(name="csv_tool", func=csv_agent_tool,
-                    description='''The csv_tool should be used when a user requests specific field values or complex data analysis from a CSV file 
-                    containing a company's quarterly financial data from 10-Q filings. You have acess to a CSV file, 'combined_data.csv', containing companies' quarterly 10-Q filings.
-                    ''')
+    text2sqltool = Tool(name="text2sql_tool", func=text2sql_tool,
+                            description="Use this tool to transform text to SQL so that you can fetch financial data from database for only question related to financial data.")
+
 
     transcript_tool = Tool(name="transcript_tool", func=transcript_analyze_tool,
                            description='''This tool handles queries about earnings call transcripts by extracting ticker, quarter, and year details from the query, 
                            selecting matching documents from Pinecone vectors, and iterating over multiple documents with the same source tag to find the answer.''')
 
-    tool_list.append(csv_tool)
+    tool_list.append(text2sqltool)
     tool_list.append(transcript_tool)
 
     prefix = '''As a chatbot, you provide financial data to investors. 
@@ -40,13 +39,6 @@ def run_main_agent(user_question):
      If required; decide on a tool to use, and only use a single tool. Answer the following question:\n{question} using the tools only.
       
     '''
-
-    # llm = ChatOpenAI(
-    #     openai_api_key=os.environ.get("OPENAI_API_KEY"),
-    #     temperature=0,
-    #     model="gpt-3.5-turbo",
-    #     model_kwargs={"stop": ["\Observation:"]},
-    # )
 
     MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
@@ -76,4 +68,5 @@ def run_main_agent(user_question):
     query_result = agent.run(
         prompt_template.format_prompt(question=user_question))
 
+    query_result = query_result.replace("$", "\$")
     return query_result
