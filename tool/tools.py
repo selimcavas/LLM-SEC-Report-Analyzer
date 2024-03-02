@@ -26,19 +26,23 @@ from langchain.sql_database import SQLDatabase
 from langchain import hub
 from langchain.schema.output_parser import StrOutputParser
 
+from data_models.models import TranscriptAnalyzeToolParams
+
 
 load_dotenv()
 
 
 MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
-
+# @tool("transcript_analyze_tool",
+#     args_schema=TranscriptAnalyzeToolParams
+# )
+## Bu tool bir şekilde birden fazla paramater ile çağrılmalı ki böylece args_schema kullanımı anlamlı hale gelsin.
 def transcript_analyze_tool(prompt: str) -> str:
     """Used to query data from a Pinecone index."""
 
     print('entered transcript tool')
-
-    api_key = os.environ['PINECONE_API_KEY']
+    # Set the environment
     environment = "gcp-starter"
 
     index_name = "sec-filing-analyzer"
