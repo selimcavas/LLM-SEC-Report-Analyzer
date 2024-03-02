@@ -4,7 +4,7 @@ from langchain.agents import Tool, ZeroShotAgent, AgentExecutor, AgentType, init
 from langchain.memory import ConversationBufferMemory
 from langchain import LLMChain
 from langchain.chat_models import ChatOpenAI
-from tool.tools import transcript_analyze_tool, text2sql_tool
+from tool.tools import transcript_analyze_tool, text2sql_tool,stock_prices_tool
 from langchain.prompts import PromptTemplate
 import os
 from langchain_community.chat_models.fireworks import ChatFireworks

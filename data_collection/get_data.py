@@ -5,6 +5,9 @@ import yfinance as yf
 import pandas as pd
 import requests
 import os
+import yfinance as yf
+import sqlite3
+from datetime import datetime, timedelta
 
 # This script gets the financial data from Yahoo Finance and saves it as a CSV file
 # It Does this for all the companies in the NASDAQ 100 index
@@ -83,6 +86,66 @@ def write_tickers():
     with open('tickers.txt', 'w') as file:
         for ticker in tickers:
             file.write(ticker + '\n')
+
+
+def update_stock_prices():
+    # Read the tickers from the file
+    with open('tickers.txt', 'r') as f:
+        tickers = f.read().splitlines()
+
+    # Connect to the SQLite database
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+
+    # Create the table if it doesn't exist
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS stock_prices (
+            ticker TEXT,
+            price REAL,
+            date TEXT,
+            PRIMARY KEY (ticker, date)
+        )
+    ''')
+
+    # Fetch the stock price data and insert it into the database
+    for ticker in tickers:
+        # Fetch the latest date for this ticker from the database
+        c.execute('''
+            SELECT MAX(date) FROM stock_prices WHERE ticker = ?
+        ''', (ticker,))
+        result = c.fetchone()
+        latest_date = result[0] if result else None
+
+        # If there's no latest date, start from 30 days ago
+        if latest_date is None:
+            start_date = datetime.now() - timedelta(days=30)
+        else:
+            # Start from the day after the latest date
+            start_date = datetime.strptime(latest_date, '%Y-%m-%d') + timedelta(days=1)
+
+        start_date_str = start_date.strftime('%Y-%m-%d')
+
+        # Fetch the data
+        stock = yf.Ticker(ticker)
+        hist = stock.history(start=start_date_str)
+
+        if not hist.empty:
+            # Loop over the historical data and insert each price and date
+            for date, row in hist.iterrows():
+                price = row['Close']
+                date_str = date.strftime('%Y-%m-%d')
+
+                # Insert the data into the database
+                c.execute('''
+                    INSERT OR IGNORE INTO stock_prices (ticker, price, date)
+                    VALUES (?, ?, ?)
+                ''', (ticker, price, date_str))
+
+    # Commit the changes and close the connection
+    conn.commit()
+    conn.close()
+
+
 
 
 if __name__ == '__main__':

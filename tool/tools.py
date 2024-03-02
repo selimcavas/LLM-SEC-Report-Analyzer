@@ -28,6 +28,11 @@ from langchain.schema.output_parser import StrOutputParser
 
 from data_models.models import TranscriptAnalyzeToolParams
 
+## after new scract tool:
+import yfinance as yf
+import sqlite3
+from datetime import datetime, timedelta
+
 
 load_dotenv()
 
@@ -37,7 +42,7 @@ MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 # @tool("transcript_analyze_tool",
 #     args_schema=TranscriptAnalyzeToolParams
 # )
-## Bu tool bir şekilde birden fazla paramater ile çağrılmalı ki böylece args_schema kullanımı anlamlı hale gelsin.
+## Bu toollar bir şekilde birden fazla paramater ile çağrılmalı ki böylece args_schema kullanımı anlamlı hale gelsin.
 def transcript_analyze_tool(prompt: str) -> str:
     """Used to query data from a Pinecone index."""
 
@@ -145,3 +150,36 @@ def text2sql_tool(text: str) -> str:
     return query_result
 
 
+
+## this is a new tool template ( not in production yet)
+def stock_prices_tool(start_date: str, end_date: str, ticker: str) -> str:
+    # Connect to the SQLite database
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+
+    # Prepare the SQL query
+    sql_query = '''
+        SELECT date, price
+        FROM stock_prices
+        WHERE date BETWEEN ? AND ? AND ticker = ?
+        ORDER BY date
+    '''
+
+    # Execute the SQL query
+    c.execute(sql_query, (start_date, end_date, ticker))
+    rows = c.fetchall()
+
+    # Check if any data was fetched
+    if not rows:
+        return f'No data for {ticker} between {start_date} and {end_date}'
+
+    # Prepare the output
+    output = f'Stock prices for {ticker} between {start_date} and {end_date}:\n'
+    for row in rows:
+        date, price = row
+        output += f'{date}: {price}\n'
+
+    # Close the connection
+    conn.close()
+
+    return output
