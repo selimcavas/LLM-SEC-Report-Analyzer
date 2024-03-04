@@ -17,8 +17,7 @@ def run_main_agent(user_question):
     tool_list = [transcript_analyze_tool, text2sql_tool]
 
     prefix = '''As a chatbot, you provide financial data to investors. 
-    You can answer questions using tools when necessary and have access to a CSV file, 'combined_data.csv', containing companies' quarterly 10-Q filings. 
-    The CSV includes company tickers, fields, and quarters. Field names may vary in format, and 'NaN' values should be removed before calculations. 
+    You can answer questions using tools when necessary.
     '''
 
     template = '''
