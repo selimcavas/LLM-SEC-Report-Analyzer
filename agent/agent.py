@@ -1,6 +1,6 @@
 
 from dotenv import load_dotenv
-from langchain.agents import Tool, ZeroShotAgent, AgentExecutor, AgentType, initialize_agent
+from langchain.agents import Tool, ZeroShotAgent, AgentExecutor, AgentType, initialize_agent, load_tools
 from langchain.memory import ConversationBufferMemory
 from langchain import LLMChain
 from langchain.chat_models import ChatOpenAI
@@ -14,18 +14,7 @@ load_dotenv()
 
 def run_main_agent(user_question):
 
-    tool_list = []
-
-    text2sqltool = Tool(name="text2sql_tool", func=text2sql_tool,
-                            description="Use this tool to transform text to SQL so that you can fetch financial data from database for only question related to financial data.")
-
-
-    transcript_tool = Tool(name="transcript_tool", func=transcript_analyze_tool,
-                           description='''This tool handles queries about earnings call transcripts by extracting ticker, quarter, and year details from the query, 
-                           selecting matching documents from Pinecone vectors, and iterating over multiple documents with the same source tag to find the answer.''')
-
-    tool_list.append(text2sqltool)
-    tool_list.append(transcript_tool)
+    tool_list = [transcript_analyze_tool, text2sql_tool]
 
     prefix = '''As a chatbot, you provide financial data to investors. 
     You can answer questions using tools when necessary and have access to a CSV file, 'combined_data.csv', containing companies' quarterly 10-Q filings. 

@@ -26,7 +26,7 @@ from langchain.sql_database import SQLDatabase
 from langchain import hub
 from langchain.schema.output_parser import StrOutputParser
 
-from data_models.models import TranscriptAnalyzeToolParams
+from data_models.models import TranscriptAnalyzeToolParams, Text2SQLToolParams
 
 ## after new scract tool:
 import yfinance as yf
@@ -35,16 +35,17 @@ from datetime import datetime, timedelta
 
 
 load_dotenv()
-
+## Bu toollar bir şekilde birden fazla paramater ile çağrılmalı ki böylece args_schema kullanımı anlamlı hale gelsin.
 
 MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
-# @tool("transcript_analyze_tool",
-#     args_schema=TranscriptAnalyzeToolParams
-# )
-## Bu toollar bir şekilde birden fazla paramater ile çağrılmalı ki böylece args_schema kullanımı anlamlı hale gelsin.
+@tool("transcript analyze", args_schema=TranscriptAnalyzeToolParams)
 def transcript_analyze_tool(prompt: str) -> str:
-    """Used to query data from a Pinecone index."""
+    """
+    Used to query data from a Pinecone index.
+    
+    """
+
 
     print('entered transcript tool')
     # Set the environment
@@ -94,8 +95,11 @@ def transcript_analyze_tool(prompt: str) -> str:
 
     return qa(prompt)
 
-
+@tool("text2sql_tool", args_schema=Text2SQLToolParams)
 def text2sql_tool(text: str) -> str:
+    """
+    Used to convert user's prompts to SQL query to obtain financial data.
+    """
     chat_model = ChatFireworks(
         model=MODEL_ID,
         model_kwargs={
