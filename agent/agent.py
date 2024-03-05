@@ -1,12 +1,8 @@
 
 from dotenv import load_dotenv
-from langchain.agents import Tool, ZeroShotAgent, AgentExecutor, AgentType, initialize_agent, load_tools
-from langchain.memory import ConversationBufferMemory
-from langchain import LLMChain
-from langchain.chat_models import ChatOpenAI
-from tool.tools import transcript_analyze_tool, text2sql_tool,stock_prices_tool
+from langchain.agents import AgentType, initialize_agent
+from tool.tools import transcript_analyze_tool, text2sql_tool, stock_prices_visualizer_tool
 from langchain.prompts import PromptTemplate
-import os
 from langchain_community.chat_models.fireworks import ChatFireworks
 
 load_dotenv()
@@ -14,7 +10,9 @@ load_dotenv()
 
 def run_main_agent(user_question):
 
-    tool_list = [transcript_analyze_tool, text2sql_tool]
+    tool_list = [transcript_analyze_tool,
+                 text2sql_tool,
+                 stock_prices_visualizer_tool]
 
     prefix = '''As a chatbot, you provide financial data to investors. 
     You can answer questions using tools when necessary.
@@ -45,6 +43,7 @@ def run_main_agent(user_question):
         verbose=True,
         handle_parsing_errors=True,
         early_stopping_method="generate",
+        agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
         agent_kwargs={
             'prefix': prefix
         }
