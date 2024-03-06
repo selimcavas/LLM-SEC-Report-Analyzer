@@ -238,6 +238,6 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
     # Close the connection
     conn.close()
 
-    return response.stream({
+    return response.invoke({
         "ticker": ticker, "start_date": start_date, "end_date": end_date, "rows": output, "prompt": prompt
     })
