@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 
 
 class TranscriptAnalyzeToolParams(BaseModel):
-    prompt: str = Field(description="""Prompt from the user that includes keywords such as following:
+    prompt: str = Field(description="""Prompt from the user that must include keywords such as following:
 
             - Earning call transcript,
             - Transcript,
@@ -10,7 +10,7 @@ class TranscriptAnalyzeToolParams(BaseModel):
 
 
 class Text2SQLToolParams(BaseModel):
-    prompt: str = Field(description=""" Prompt from the user that asks for finanical data obtained from the:
+    text: str = Field(description=""" Prompt from the user that asks for finanical data obtained from the:
                       
             - Yahoo Finance Income Statement Sheet,
             - Yahoo Finance Balance Sheet Sheet,

@@ -1,4 +1,5 @@
 
+import re
 from dotenv import load_dotenv
 from langchain.agents import tool
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
@@ -23,7 +24,7 @@ from langchain import hub
 from langchain.schema.output_parser import StrOutputParser
 
 from data_models.models import StockPriceVisualizationToolParams, TranscriptAnalyzeToolParams, Text2SQLToolParams
-
+from langchain_core.prompts import ChatPromptTemplate
 # after new scract tool:
 import sqlite3
 
@@ -34,7 +35,7 @@ load_dotenv()
 MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
 
-@tool("transcript analyze", args_schema=TranscriptAnalyzeToolParams)
+@tool("transcript_analyze_tool", args_schema=TranscriptAnalyzeToolParams)
 def transcript_analyze_tool(prompt: str) -> str:
     """
     Used to query data from a Pinecone index.
@@ -89,7 +90,7 @@ def transcript_analyze_tool(prompt: str) -> str:
         # return_source_documents=True,
     )
 
-    return qa(prompt)
+    return str(qa(prompt))
 
 
 @tool("text2sql_tool", args_schema=Text2SQLToolParams)
@@ -152,7 +153,7 @@ def text2sql_tool(text: str) -> str:
 
 
 # this is a new tool template ( not in production yet)
-@tool("stock_prices_visualizer", args_schema=StockPriceVisualizationToolParams)
+@tool("stock_prices_visualizer_tool", args_schema=StockPriceVisualizationToolParams)
 def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, prompt: str) -> str:
     '''
     Used to visualize stock prices of a company in a given date range.
@@ -177,8 +178,8 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
     if not rows:
         return f'No data for {ticker} between {start_date} and {end_date}'
 
+    output = ""
     # Prepare the output
-    output = f'Stock prices for {ticker} between {start_date} and {end_date}:\n'
     for row in rows:
         date, price = row
         output += f'{date}: {price}\n'
@@ -187,28 +188,38 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
 
         You are an experienced analyst that can generate stock price charts.
         Generate an appropriate chart for the stock prices of {ticker} between {start_date} and {end_date}.
-        Use the below output format for generating the chart for the question:
+        Use the {rows} and below output format for generating the chart for the question:
         
         {prompt} 
 
         1. If the query requires a table, format your answer like this:
-           {"table": {"columns": ["column1", "column2", ...], "data": [[value1, value2, ...], [value1, value2, ...], ...]}}
+           ```{{"table": 
+                {{"columns": ["column1", "column2", ...], "data": [[value1, value2, ...], [value1, value2, ...], ...]}}
+            }}
+           ```
 
         2. For a bar chart, respond like this:
-           {"bar": {"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}
+           ```{{"bar": 
+                {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}
+           }}
+           ```
 
         3. If a line chart is more appropriate, your reply should look like this:
-           {"line": {"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}
+           ```{{"line": 
+                {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}
+            }}
+           ```
 
         Note: We only accommodate two types of charts: "bar" and "line".
 
         4. If the answer does not require a chart, simply respond with the following format:
-            {"answer": "Your answer here"}
+           ```
+            {{"answer": "Your answer here"}}
+           ```
                 
     '''
 
-    prompt_template = PromptTemplate(template=chart_prompt, input_variables=[
-                                     "ticker", "start_date", "end_date", "prompt"])
+    prompt_template = ChatPromptTemplate.from_template(chart_prompt)
 
     chat_model = ChatFireworks(
         model=MODEL_ID,
@@ -219,12 +230,14 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
         }
     )
 
-    final_prompt = prompt_template.format(
-        ticker=ticker, start_date=start_date, end_date=end_date, prompt=prompt)
+    # final_prompt = prompt_template.format(
+    #     ticker=ticker, start_date=start_date, end_date=end_date, rows=output, prompt=prompt)
 
-    response = chat_model(final_prompt)
+    response = prompt_template | chat_model | StrOutputParser()
 
     # Close the connection
     conn.close()
 
-    return response
+    return response.stream({
+        "ticker": ticker, "start_date": start_date, "end_date": end_date, "rows": output, "prompt": prompt
+    })
