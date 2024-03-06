@@ -216,7 +216,7 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
            ```
             {{"answer": "Your answer here"}}
            ```
-                
+        Please provide only the chart data and nothing else.
     '''
 
     prompt_template = ChatPromptTemplate.from_template(chart_prompt)
