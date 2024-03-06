@@ -8,7 +8,7 @@ import json
 from langchain_openai import OpenAIEmbeddings
 
 from langchain.chains import RetrievalQA
-from llama_index import PromptTemplate
+from langchain.prompts import PromptTemplate
 
 from pinecone import Pinecone
 # from langchain.vectorstores import Pinecone
