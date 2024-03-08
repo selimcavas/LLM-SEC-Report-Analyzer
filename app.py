@@ -1,10 +1,14 @@
 import json
+from os import write
+import numpy as np
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_experimental.agents.agent_toolkits import create_csv_agent
 from streamlit_chat import message
 from agent.agent import run_main_agent
 from langchain_core.messages import AIMessage, HumanMessage
+
+from st_chart_response import write_answer
 
 
 def main():
@@ -42,8 +46,7 @@ def main():
                 user_query, st.session_state.chat_history))
             print(response[1].get("messages")[0].content)
             json_blob = json.loads(response[1].get("messages")[0].content)
-
-            print(json_blob["line"])
+            write_answer(json_blob)
 
         st.session_state.chat_history.append(AIMessage(content=response))
 

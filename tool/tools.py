@@ -220,8 +220,8 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
             {{"answer": "Your answer here"}}
            ```
         
-        ONLY return the $JSON_BLOB and nothing else. Do not write anything after the $JSON_BLOB.
-        Do not write something like (Note: note), we only need the data. Make sure all opening and closing curly braces matches in the $JSON_BLOB.
+        IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
+        Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
         Begin!
 
         $JSON_BLOB:

@@ -6,6 +6,7 @@ from langchain.prompts import PromptTemplate
 from langchain_community.chat_models.fireworks import ChatFireworks
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+import os
 load_dotenv()
 
 
@@ -34,6 +35,7 @@ def run_main_agent(user_question, chat_history):
 
     MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
+    print(os.environ.get("FIREWORKS_API_KEY"))
     chat_model = ChatFireworks(
         model=MODEL_ID,
         model_kwargs={
