@@ -192,19 +192,22 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
         
         {prompt} 
 
-        1. If the query requires a table, format your answer like this:
+        The way you generate a chart is by creating a $JSON_BLOB
+        
+
+        1. If the query requires a table, $JSON_BLOB should be like this:
            ```{{"table": 
                 {{"columns": ["column1", "column2", ...], "data": [[value1, value2, ...], [value1, value2, ...], ...]}}
             }}
            ```
 
-        2. For a bar chart, respond like this:
+        2. For a bar chart, $JSON_BLOB should be like this:
            ```{{"bar": 
                 {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}
            }}
            ```
 
-        3. If a line chart is more appropriate, your reply should look like this:
+        3. If a line chart is more appropriate, $JSON_BLOB should look like this:
            ```{{"line": 
                 {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}
             }}
@@ -212,11 +215,14 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
 
         Note: We only accommodate two types of charts: "bar" and "line".
 
-        4. If the answer does not require a chart, simply respond with the following format:
+        4. If the answer does not require a chart, simply respond with the following $JSON_BLOB:
            ```
             {{"answer": "Your answer here"}}
            ```
-        Please provide only the chart data and nothing else.
+        Only return the $JSON_BLOB and nothing else. Begin!
+
+        $JSON_BLOB:
+        
     '''
 
     prompt_template = ChatPromptTemplate.from_template(chart_prompt)
