@@ -1,3 +1,4 @@
+import json
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_experimental.agents.agent_toolkits import create_csv_agent
@@ -39,6 +40,10 @@ def main():
         with st.chat_message("AI"):
             response = st.write_stream(run_main_agent(
                 user_query, st.session_state.chat_history))
+            print(response[1].get("messages")[0].content)
+            json_blob = json.loads(response[1].get("messages")[0].content)
+
+            print(json_blob["line"])
 
         st.session_state.chat_history.append(AIMessage(content=response))
 

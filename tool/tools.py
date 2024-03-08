@@ -188,11 +188,11 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
 
         You are an experienced analyst that can generate stock price charts.
         Generate an appropriate chart for the stock prices of {ticker} between {start_date} and {end_date}.
-        Use the {rows} and below output format for generating the chart for the question:
+        Use the {rows} and below output format for generating the chart for the question, do not round any values:
         
         {prompt} 
 
-        The way you generate a chart is by creating a $JSON_BLOB
+        The way you generate a chart is by creating a $JSON_BLOB.
         
 
         1. If the query requires a table, $JSON_BLOB should be like this:
@@ -219,7 +219,10 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
            ```
             {{"answer": "Your answer here"}}
            ```
-        Only return the $JSON_BLOB and nothing else. Begin!
+        
+        ONLY return the $JSON_BLOB and nothing else. Do not write anything after the $JSON_BLOB.
+        Do not write something like (Note: note), we only need the data. Make sure all opening and closing curly braces matches in the $JSON_BLOB.
+        Begin!
 
         $JSON_BLOB:
         
