@@ -186,9 +186,9 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
 
     chart_prompt = '''
 
-        You are an experienced analyst that can generate stock price charts.
-        Generate an appropriate chart for the stock prices of {ticker} between {start_date} and {end_date}.
-        Use the {rows} and below output format for generating the chart for the question, do not round any values:
+        You are an experienced analyst that can generate stock price charts and provide insightful comments about them.
+        Generate an appropriate chart for the stock prices of {ticker} between {start_date} and {end_date}, and provide a brief comment about the price trends or significant events you notice in the data.
+        Use the {rows} and below output format for generating the chart and the comment for the question, do not round any values:
         
         {prompt} 
 
@@ -196,36 +196,36 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
         
 
         1. If the query requires a table, $JSON_BLOB should be like this:
-           ```{{"table": 
-                {{"columns": ["column1", "column2", ...], "data": [[value1, value2, ...], [value1, value2, ...], ...]}}
+        ```{{"table": 
+                {{"columns": ["column1", "column2", ...], "data": [[value1, value2, ...], [value1, value2, ...], ...]}}, "comment": "Your comment here"}}
             }}
-           ```
+        ```
 
         2. For a bar chart, $JSON_BLOB should be like this:
-           ```{{"bar": 
-                {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}
-           }}
-           ```
+        ```{{"bar": 
+                {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}, "comment": "Your comment here"}}
+        }}
+        ```
 
         3. If a line chart is more appropriate, $JSON_BLOB should look like this:
-           ```{{"line": 
-                {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}
+        ```{{"line": 
+                {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}, "comment": "Your comment here"}}
             }}
-           ```
+        ```
 
         Note: We only accommodate two types of charts: "bar" and "line".
 
         4. If the answer does not require a chart, simply respond with the following $JSON_BLOB:
-           ```
+        ```
             {{"answer": "Your answer here"}}
-           ```
+        ```
         
         IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
         Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
         Begin!
 
         $JSON_BLOB:
-        
+
     '''
 
     prompt_template = ChatPromptTemplate.from_template(chart_prompt)

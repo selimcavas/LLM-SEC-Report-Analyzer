@@ -35,7 +35,7 @@ def run_main_agent(user_question, chat_history):
 
     MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
-    print(os.environ.get("FIREWORKS_API_KEY"))
+
     chat_model = ChatFireworks(
         model=MODEL_ID,
         model_kwargs={

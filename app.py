@@ -44,35 +44,28 @@ def main():
         with st.chat_message("AI"):
             response = st.write_stream(run_main_agent(
                 user_query, st.session_state.chat_history))
-            print(response[1].get("messages")[0].content)
-            json_blob = json.loads(response[1].get("messages")[0].content)
+
+            json_candidate = response[1].get("messages")[0].content
+            print("First JSON candidate: ", json_candidate)
+            # Find the first and last curly brackets
+            first_bracket = json_candidate.find('{')
+            last_bracket = json_candidate.rfind('}')
+
+            # Extract the substring between the first and last curly brackets
+            json_candidate = json_candidate[first_bracket:last_bracket+1]
+            print("Before loading JSON: ", json_candidate)
+
+            json_blob = json.loads(json_candidate)
+            print(json_blob)
             write_answer(json_blob)
+            
+            # Extract the comment from the JSON blob and write it to the app frontend
+            comment = json_blob.get("comment")
+            if comment:
+                st.write(comment.replace("$", "\$"))
 
         st.session_state.chat_history.append(AIMessage(content=response))
 
-    # user_question = st.chat_input(
-    #     'Ask a question about financial statements or earnings call transcripts.')
-
-    # if user_question is not None and user_question != "":
-    #     with st.spinner(text="In progress..."):
-    #         # response = agent.run(user_question)
-    #         response = run_main_agent(user_question)
-    #         if (
-    #             "user_prompt_history" not in st.session_state
-    #             and "chat_answer_history" not in st.session_state
-    #         ):
-    #             st.session_state["user_prompt_history"] = []
-    #             st.session_state["chat_answer_history"] = []
-
-    #         st.session_state["user_prompt_history"].append(user_question)
-    #         st.session_state["chat_answer_history"].append(response)
-
-    #         if st.session_state["chat_answer_history"]:
-    #             for user_query, answer in zip(
-    #                 st.session_state["user_prompt_history"], st.session_state["chat_answer_history"]
-    #             ):
-    #                 message(user_query, is_user=True)
-    #                 message(answer)
 
 
 if __name__ == '__main__':
