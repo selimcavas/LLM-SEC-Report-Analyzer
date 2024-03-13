@@ -2,11 +2,14 @@ from pydantic import BaseModel, Field
 
 
 class TranscriptAnalyzeToolParams(BaseModel):
-    prompt: str = Field(description="""Prompt from the user that must include keywords such as following:
+    ticker: str = Field(
+        description="""Given ticker in the prompt taken from user (e.g. AAPL for Apple Inc)""")
 
-            - Earning call transcript,
-            - Transcript,
-                        """)
+    year: str = Field(
+        description="""Given year in the prompt taken from user (e.g. 2023)""")
+
+    quarter: str = Field(
+        description="""Given quarter in the prompt taken from user in capital letters (e.g Q2) """)
 
 
 class Text2SQLToolParams(BaseModel):

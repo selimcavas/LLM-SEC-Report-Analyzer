@@ -36,9 +36,9 @@ MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
 
 @tool("transcript_analyze_tool", args_schema=TranscriptAnalyzeToolParams)
-def transcript_analyze_tool(prompt: str) -> str:
+def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
     """
-    Used to query data from a Pinecone index.
+    Used to analyze earning call transcript texts and extract information that could potentially signal risks or growth within a company.
 
     """
 
@@ -66,13 +66,6 @@ def transcript_analyze_tool(prompt: str) -> str:
     vectorstore = PineconeVectorStore.from_existing_index(
         index_name, embed, text_field)
 
-    vectorstore.similarity_search(
-        prompt,  # our search query
-    )
-
-    # Using LangChain we pass in our model for text generation.
-    # llm = ChatOpenAI(temperature=0.5, model_name="gpt-3.5-turbo", max_tokens=512)
-
     llm = ChatFireworks(
         model=MODEL_ID,
         model_kwargs={
@@ -80,6 +73,59 @@ def transcript_analyze_tool(prompt: str) -> str:
             "max_tokens": 2048,
             "top_p": 1,
         }
+    )
+
+    similarity_search_prompt = ''' 
+    Expert in financial analysis, your task is to meticulously analyze earning call transcript texts and extract crucial keywords that could potentially signal risks or growth within a company. 
+
+    ### Parameters:
+
+    quarter: {quarter}
+    year: {year}
+    ticker: {ticker}
+
+    In your analysis, focus on keywords that could indicate financial risks, potential growth, market trends, and strategic decisions. 
+
+    Once you have extracted these keywords, generate a new prompt for a similarity search. This search should aim to find transcripts with similar risk-reward profiles, market trends, or strategic decisions. 
+
+    Your generated prompt should clearly indicate the focus areas, such as financial risks, potential growth, market trends, or strategic decisions, and should encourage a comprehensive comparison. 
+
+    Only return a list of most relevant keywords and nothing else. 
+    To locate the specific transcript file that the user is looking for, you need to add the quarter ticker and year info to the list of generated keywords.
+
+    Generated keywords:
+
+    '''
+
+    analyze_prompt = '''
+    As an expert financial analyst, analyze the earning call transcript texts and provide a comprehensive financial status of the company, indicating its growth or decline in value.
+    
+    ### Desired Format:
+
+    - An executive summary of the company's financial status, including key financial metrics such as revenue, net income, and cash flow.
+    - A detailed analysis of the company's financial performance, broken down by business segment if applicable.
+    - A list of key points or themes from the earnings call, each with:
+        - A brief explanation of why the point is important.
+        - Relevant excerpts from the transcript, presented as bullet points, that illustrate or support the key point.
+        - Any relevant financial data or metrics associated with the key point.
+    - An analysis of the company's future outlook, based on statements made during the earnings call and the company's financial data.
+    - A conclusion that synthesizes the above information and highlights whether the company is on a growth trajectory or facing a decline. This should include any significant risks or opportunities identified during the analysis.
+        
+    '''
+
+    prompt_template = ChatPromptTemplate.from_template(
+        similarity_search_prompt)
+
+    response = prompt_template | llm | StrOutputParser()
+
+    similarity_pr = response.invoke({
+        "quarter": quarter, "year": year, "ticker": ticker
+    })
+
+    print("🟢✔", similarity_pr)
+
+    vectorstore.similarity_search(
+        similarity_pr,  # our search query
     )
 
     qa = RetrievalQA.from_chain_type(
@@ -90,7 +136,7 @@ def transcript_analyze_tool(prompt: str) -> str:
         # return_source_documents=True,
     )
 
-    return str(qa(prompt))
+    return str(qa(analyze_prompt))
 
 
 @tool("text2sql_tool", args_schema=Text2SQLToolParams)
@@ -134,8 +180,6 @@ def text2sql_tool(text: str) -> str:
     # Call with a given question
     response = sql_response.invoke(
         {"question": str(text)})
-
-    print(response)
 
     start = response.find('"') + 1
 

@@ -35,7 +35,6 @@ def run_main_agent(user_question, chat_history):
 
     MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
-
     chat_model = ChatFireworks(
         model=MODEL_ID,
         model_kwargs={

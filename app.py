@@ -1,3 +1,4 @@
+from calendar import c
 import json
 from os import write
 import numpy as np
@@ -46,26 +47,28 @@ def main():
                 user_query, st.session_state.chat_history))
 
             json_candidate = response[1].get("messages")[0].content
-            print("First JSON candidate: ", json_candidate)
-            # Find the first and last curly brackets
-            first_bracket = json_candidate.find('{')
-            last_bracket = json_candidate.rfind('}')
+            chart_response = "chart_line" in json_candidate or "chart_bar" in json_candidate or "chart_table" in json_candidate or "chart_normal_answer" in json_candidate
 
-            # Extract the substring between the first and last curly brackets
-            json_candidate = json_candidate[first_bracket:last_bracket+1]
-            print("Before loading JSON: ", json_candidate)
+            if chart_response:
+                print("🟢 First JSON candidate: ", json_candidate, "\n")
+                # Find the first and last curly brackets
+                first_bracket = json_candidate.find('{')
+                last_bracket = json_candidate.rfind('}')
 
-            json_blob = json.loads(json_candidate)
-            print(json_blob)
-            write_answer(json_blob)
-            
-            # Extract the comment from the JSON blob and write it to the app frontend
-            comment = json_blob.get("comment")
-            if comment:
-                st.write(comment.replace("$", "\$"))
+                # Extract the substring between the first and last curly brackets
+                json_candidate = json_candidate[first_bracket:last_bracket+1]
+                print("Before loading JSON: ", json_candidate)
+
+                json_blob = json.loads(json_candidate)
+                print(json_blob)
+                write_answer(json_blob)
+
+                # Extract the comment from the JSON blob and write it to the app frontend
+                comment = json_blob.get("comment")
+                if comment:
+                    st.write(comment.replace("$", "\$"))
 
         st.session_state.chat_history.append(AIMessage(content=response))
-
 
 
 if __name__ == '__main__':
