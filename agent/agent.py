@@ -1,7 +1,7 @@
 
 from dotenv import load_dotenv
 from langchain.agents import AgentType, initialize_agent
-from tool.tools import transcript_analyze_tool, text2sql_tool, stock_prices_visualizer_tool
+from tool.tools import transcript_analyze_tool, text2sql_tool, stock_prices_visualizer_tool, compare_stock_prices_tool
 from langchain.prompts import PromptTemplate
 from langchain_community.chat_models.fireworks import ChatFireworks
 from langchain_core.prompts import ChatPromptTemplate
@@ -14,7 +14,8 @@ def run_main_agent(user_question, chat_history):
 
     tool_list = [transcript_analyze_tool,
                  text2sql_tool,
-                 stock_prices_visualizer_tool]
+                 stock_prices_visualizer_tool,
+                 compare_stock_prices_tool]
 
     template = '''
 

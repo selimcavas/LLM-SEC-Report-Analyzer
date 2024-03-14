@@ -23,7 +23,7 @@ from langchain.sql_database import SQLDatabase
 from langchain import hub
 from langchain.schema.output_parser import StrOutputParser
 
-from data_models.models import StockPriceVisualizationToolParams, TranscriptAnalyzeToolParams, Text2SQLToolParams
+from data_models.models import StockPriceVisualizationToolParams, TranscriptAnalyzeToolParams, Text2SQLToolParams, CompareStockPriceVisualizationToolParams
 from langchain_core.prompts import ChatPromptTemplate
 # after new scract tool:
 import sqlite3
@@ -299,3 +299,97 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
     return response.invoke({
         "ticker": ticker, "start_date": start_date, "end_date": end_date, "rows": output, "prompt": prompt
     })
+
+
+
+@tool("compare_stock_prices_tool", args_schema=CompareStockPriceVisualizationToolParams)
+def compare_stock_prices_tool(start_date: str, end_date: str, ticker1: str, ticker2: str, prompt: str) -> str:
+    '''
+    Used to compare stock prices and returns of two companies in a given date range. Cannot be used with other tools.
+    '''
+    # Connect to the SQLite database
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+
+    # Prepare the SQL queries
+    sql_query1 = '''
+        SELECT date, price
+        FROM stock_prices
+        WHERE date BETWEEN ? AND ? AND ticker = ?
+        ORDER BY date
+    '''
+    sql_query2 = sql_query1  # The same query structure is used for the second ticker
+
+    # Execute the SQL queries
+    c.execute(sql_query1, (start_date, end_date, ticker1))
+    rows1 = c.fetchall()
+    c.execute(sql_query2, (start_date, end_date, ticker2))
+    rows2 = c.fetchall()
+
+    # Check if any data was fetched
+    if not rows1 or not rows2:
+        return f'No data for {ticker1} or {ticker2} between {start_date} and {end_date}'
+
+    # Prepare the output and calculate cumulative returns
+    first_price1 = rows1[0][1]
+    output1 = [f'{date}: {price}, Cumulative Return: {((price - first_price1) / first_price1) - 1 }' for date, price in rows1]
+
+    first_price2 = rows2[0][1]
+    output2 = [f'{date}: {price}, Cumulative Return: {((price - first_price2) / first_price2) - 1}' for date, price in rows2]
+
+    output1 = "\n".join(output1)
+    output2 = "\n".join(output2)
+
+    print("🟢", output1)
+    print("🟢", output2)
+
+    # Modify the chart_prompt to include instructions for comparing the two companies
+    chart_prompt = '''
+        As an experienced analyst, your task is to compare the cumulative returns of {ticker1} and {ticker2} between {start_date} and {end_date}. 
+
+        You will need to:
+
+        1. Fetch the stock price data for both companies for the specified period.
+        2. Calculate the daily returns for each company.
+        3. Calculate the cumulative returns for each company based on the first date.
+        4. Generate a line graph with:
+            - The x-axis representing the dates.
+            - The y-axis representing the cumulative returns.
+            - Two lines, one for each company, with the height of each point representing the cumulative return on that date.
+
+        The graph should clearly show the comparative performance of the two companies over the given period. 
+
+        Please include a brief analysis of the graph, highlighting any notable trends or points of interest.
+
+        The way you generate a graph is by creating a $JSON_BLOB.
+
+        For a line graph, $JSON_BLOB should be like this:
+        ```{{"chartline": 
+                {{"columns": ["Date", "{ticker1}", "{ticker2}"], "data": [["2020-01-01", value1, value2], ["2020-01-02", value1, value2], ...]}}, "comment": "Your comment here"}}
+            }}
+
+        IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
+        Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
+        Begin!
+
+        $JSON_BLOB:
+    '''
+    prompt_template = ChatPromptTemplate.from_template(chart_prompt)
+
+    chat_model = ChatFireworks(
+        model=MODEL_ID,
+        model_kwargs={
+            "temperature": 0,
+            "max_tokens": 2048,
+            "top_p": 1,
+        }
+    )
+
+    response = prompt_template | chat_model | StrOutputParser()
+
+    # Close the connection
+    conn.close()
+
+    return ( response.invoke({
+        "ticker1": ticker1, "ticker2": ticker2, "start_date": start_date, "end_date": end_date, "rows1": output1, "rows2": output2, "prompt": prompt
+    }))

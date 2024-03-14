@@ -47,7 +47,7 @@ def main():
                 user_query, st.session_state.chat_history))
 
             json_candidate = response[1].get("messages")[0].content
-            chart_response = "chartline" in json_candidate or "chartbar" in json_candidate or "charttable" in json_candidate or "chartanswer" in json_candidate
+            chart_response = "chartline" in json_candidate or "chartbar" in json_candidate or "charttable" in json_candidate or "chartanswer" in json_candidate or "chartstackedcolumn" in json_candidate
 
             if chart_response:
                 print("🟢 First JSON candidate: ", json_candidate, "\n")
