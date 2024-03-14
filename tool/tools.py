@@ -110,7 +110,8 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
         - Any relevant financial data or metrics associated with the key point.
     - An analysis of the company's future outlook, based on statements made during the earnings call and the company's financial data.
     - A conclusion that synthesizes the above information and highlights whether the company is on a growth trajectory or facing a decline. This should include any significant risks or opportunities identified during the analysis.
-        
+
+    Remember you can not use any other tools. 
     '''
 
     prompt_template = ChatPromptTemplate.from_template(
@@ -132,7 +133,8 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
         llm=llm,
         chain_type="stuff",
         retriever=vectorstore.as_retriever(
-            search_kwargs={"k": 10}),  # return 7 most relevant docs
+            search_type="mmr",
+            search_kwargs={"k": 6, 'lambda_mult': 0.25}),  # return 7 most relevant docs
         # return_source_documents=True,
     )
 
