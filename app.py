@@ -47,7 +47,7 @@ def main():
                 user_query, st.session_state.chat_history))
 
             json_candidate = response[1].get("messages")[0].content
-            chart_response = "chart_line" in json_candidate or "chart_bar" in json_candidate or "chart_table" in json_candidate or "chart_normal_answer" in json_candidate
+            chart_response = "chartline" in json_candidate or "chartbar" in json_candidate or "charttable" in json_candidate or "chartanswer" in json_candidate
 
             if chart_response:
                 print("🟢 First JSON candidate: ", json_candidate, "\n")
@@ -67,7 +67,7 @@ def main():
                 comment = json_blob.get("comment")
                 if comment:
                     st.write(comment.replace("$", "\$"))
-
+            # st.markdown(response[2].get("messages")[0].content)
         st.session_state.chat_history.append(AIMessage(content=response))
 
 

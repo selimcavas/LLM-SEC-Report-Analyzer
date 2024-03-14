@@ -38,7 +38,7 @@ MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 @tool("transcript_analyze_tool", args_schema=TranscriptAnalyzeToolParams)
 def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
     """
-    Used to analyze earning call transcript texts and extract information that could potentially signal risks or growth within a company.
+    Used to analyze earning call transcript texts and extract information that could potentially signal risks or growth within a company. Cannot be used with other tools.
 
     """
 
@@ -142,7 +142,7 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
 @tool("text2sql_tool", args_schema=Text2SQLToolParams)
 def text2sql_tool(text: str) -> str:
     """
-    Used to convert user's prompts to SQL query to obtain financial data.
+    Used to convert user's prompts to SQL query to obtain financial data. Cannot be used with other tools.
     """
     chat_model = ChatFireworks(
         model=MODEL_ID,
@@ -200,7 +200,7 @@ def text2sql_tool(text: str) -> str:
 @tool("stock_prices_visualizer_tool", args_schema=StockPriceVisualizationToolParams)
 def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, prompt: str) -> str:
     '''
-    Used to visualize stock prices of a company in a given date range.
+    Used to visualize stock prices of a company in a given date range. Cannot be used with other tools.
     '''
     # Connect to the SQLite database
     conn = sqlite3.connect('database.db')
@@ -240,19 +240,19 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
         
 
         1. If the query requires a table, $JSON_BLOB should be like this:
-        ```{{"table": 
+        ```{{"charttable": 
                 {{"columns": ["column1", "column2", ...], "data": [[value1, value2, ...], [value1, value2, ...], ...]}}, "comment": "Your comment here"}}
             }}
         ```
 
         2. For a bar chart, $JSON_BLOB should be like this:
-        ```{{"bar": 
+        ```{{"chartbar": 
                 {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}, "comment": "Your comment here"}}
         }}
         ```
 
         3. If a line chart is more appropriate, $JSON_BLOB should look like this:
-        ```{{"line": 
+        ```{{"chartline": 
                 {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}, "comment": "Your comment here"}}
             }}
         ```
@@ -261,7 +261,7 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
 
         4. If the answer does not require a chart, simply respond with the following $JSON_BLOB:
         ```
-            {{"answer": "Your answer here"}}
+            {{"chartanswer": "Your answer here"}}
         ```
         
         IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
