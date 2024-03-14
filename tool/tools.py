@@ -99,8 +99,9 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
 
     analyze_prompt = '''
     As an expert financial analyst, analyze the earning call transcript texts and provide a comprehensive financial status of the company, indicating its growth or decline in value.
+    Prepare a markdown report that includes the following sections, each with the relevant information and data to support your analysis:
     
-    ### Desired Format:
+    ### Final Report Desired Format:
 
     - An executive summary of the company's financial status, including key financial metrics such as revenue, net income, and cash flow.
     - A detailed analysis of the company's financial performance, broken down by business segment if applicable.
@@ -110,8 +111,7 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
         - Any relevant financial data or metrics associated with the key point.
     - An analysis of the company's future outlook, based on statements made during the earnings call and the company's financial data.
     - A conclusion that synthesizes the above information and highlights whether the company is on a growth trajectory or facing a decline. This should include any significant risks or opportunities identified during the analysis.
-
-    Remember you can not use any other tools. 
+    
     '''
 
     prompt_template = ChatPromptTemplate.from_template(
@@ -123,19 +123,22 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
         "quarter": quarter, "year": year, "ticker": ticker
     })
 
-    print("🟢✔", similarity_pr)
+    print("🟢", similarity_pr)
 
-    vectorstore.similarity_search(
-        similarity_pr,  # our search query
+    docs = vectorstore.similarity_search(
+        query=similarity_pr,  # our search query
+        filter={'source': f'{ticker.lower()}_{quarter.lower()}_{year}.txt'}
     )
+
+    for doc in docs:
+        print("🟡", doc, "\n")
 
     qa = RetrievalQA.from_chain_type(
         llm=llm,
         chain_type="stuff",
         retriever=vectorstore.as_retriever(
-            search_type="mmr",
-            search_kwargs={"k": 6, 'lambda_mult': 0.25}),  # return 7 most relevant docs
-        # return_source_documents=True,
+            # search_type="mmr",
+            search_kwargs={"k": 10, 'filter': {'source': f'{ticker.lower()}_{quarter.lower()}_{year}.txt'}}),
     )
 
     return str(qa(analyze_prompt))
