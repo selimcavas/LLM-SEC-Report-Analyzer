@@ -6,6 +6,7 @@ from langchain.prompts import PromptTemplate
 from langchain_community.chat_models.fireworks import ChatFireworks
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain.tools.render import render_text_description
 import os
 load_dotenv()
 
@@ -30,8 +31,11 @@ def run_main_agent(user_question, chat_history):
     
      You can't provide investment advice or answer non-financial questions. 
      If you're asked to provide investment advice, kindly reject the question by saying you are only a chatbot. 
-     If required; decide on a tool to use, and only use a single tool.
-      
+     If required; decide on a tool to use, however you can only use a single tool per question so select your tool wisely.
+    
+     You have access to the following tools:
+        {tools}
+
     '''
 
     MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
@@ -42,7 +46,8 @@ def run_main_agent(user_question, chat_history):
             "temperature": 0,
             "max_tokens": 2048,
             "top_p": 1,
-        }
+        },
+        fireworks_api_key=os.getenv("FIREWORKS_API_KEY")
     )
 
     # prompt_temp = ChatPromptTemplate.from_template(template)
@@ -57,18 +62,13 @@ def run_main_agent(user_question, chat_history):
         tools=tool_list,
         llm=chat_model,
         verbose=True,
-        handle_parsing_errors=True,
-        early_stopping_method="generate",
-        agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
-        # agent_kwargs={
-        #     'prefix': prefix
-        # }
+        agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION
     )
 
     prompt_template = PromptTemplate(
-        template=template, input_variables=["user_question", "chat_history"])
+        template=template, input_variables=["user_question", "chat_history", "tools"])
 
     query_result = agent.stream(
-        prompt_template.format_prompt(user_question=user_question, chat_history=chat_history))
+        prompt_template.format_prompt(user_question=user_question, chat_history=chat_history, tools=render_text_description(tool_list)))
 
     return query_result

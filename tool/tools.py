@@ -15,8 +15,6 @@ from pinecone import Pinecone
 # from langchain.vectorstores import Pinecone
 from langchain_pinecone import PineconeVectorStore
 
-from langchain_community.chat_models.fireworks import ChatFireworks
-
 # after updates
 from langchain_community.chat_models.fireworks import ChatFireworks
 from langchain.sql_database import SQLDatabase
@@ -72,66 +70,31 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
             "temperature": 0,
             "max_tokens": 2048,
             "top_p": 1,
-        }
+        },
+        fireworks_api_key=os.getenv("FIREWORKS_API_KEY")
     )
-
-    similarity_search_prompt = ''' 
-    Expert in financial analysis, your task is to meticulously analyze earning call transcript texts and extract crucial keywords that could potentially signal risks or growth within a company. 
-
-    ### Parameters:
-
-    quarter: {quarter}
-    year: {year}
-    ticker: {ticker}
-
-    In your analysis, focus on keywords that could indicate financial risks, potential growth, market trends, and strategic decisions. 
-
-    Once you have extracted these keywords, generate a new prompt for a similarity search. This search should aim to find transcripts with similar risk-reward profiles, market trends, or strategic decisions. 
-
-    Your generated prompt should clearly indicate the focus areas, such as financial risks, potential growth, market trends, or strategic decisions, and should encourage a comprehensive comparison. 
-
-    Only return a list of most relevant keywords and nothing else. 
-    To locate the specific transcript file that the user is looking for, you need to add the quarter ticker and year info to the list of generated keywords.
-
-    Generated keywords:
-
-    '''
 
     analyze_prompt = '''
     As an expert financial analyst, analyze the earning call transcript texts and provide a comprehensive financial status of the company, indicating its growth or decline in value.
-    Prepare a markdown report that includes the following sections, each with the relevant information and data to support your analysis:
     
-    ### Final Report Desired Format:
+    Return a short $MARKDOWN_BLOB with the following information:
 
-    - An executive summary of the company's financial status, including key financial metrics such as revenue, net income, and cash flow.
-    - A detailed analysis of the company's financial performance, broken down by business segment if applicable.
-    - A list of key points or themes from the earnings call, each with:
-        - A brief explanation of why the point is important.
-        - Relevant excerpts from the transcript, presented as bullet points, that illustrate or support the key point.
-        - Any relevant financial data or metrics associated with the key point.
-    - An analysis of the company's future outlook, based on statements made during the earnings call and the company's financial data.
-    - A conclusion that synthesizes the above information and highlights whether the company is on a growth trajectory or facing a decline. This should include any significant risks or opportunities identified during the analysis.
-    
+    ```
+        - **Summary**: Short executive summary of the company's financial status, including key financial metrics.
+        - **Analysis**: Short analysis of the company's financial performance, broken down by business segment if applicable.
+        - **Key Points**: List of key points or themes from the earnings call, each with explanation, excerpts, and relevant data.
+        - **Outlook**: Analysis of the company's future outlook, based on earnings call and financial data.
+        - **Conclusion**: Conclusion that synthesizes the above information and highlights whether the company is on a growth trajectory.
+    ```
+
+    IMPORTANT: ONLY return the $MARKDOWN_BLOB and nothing else. $MARKDOWN_BLOB must be shorter than 100 words.
+        Do not include any additional text, notes, or comments in your response. 
+        Your response should begin and end with the $MARKDOWN_BLOB.
+        Begin!
+
+    $MARKDOWN_BLOB:
+
     '''
-
-    prompt_template = ChatPromptTemplate.from_template(
-        similarity_search_prompt)
-
-    response = prompt_template | llm | StrOutputParser()
-
-    similarity_pr = response.invoke({
-        "quarter": quarter, "year": year, "ticker": ticker
-    })
-
-    print("🟢", similarity_pr)
-
-    docs = vectorstore.similarity_search(
-        query=similarity_pr,  # our search query
-        filter={'source': f'{ticker.lower()}_{quarter.lower()}_{year}.txt'}
-    )
-
-    for doc in docs:
-        print("🟡", doc, "\n")
 
     qa = RetrievalQA.from_chain_type(
         llm=llm,
@@ -155,7 +118,8 @@ def text2sql_tool(text: str) -> str:
             "temperature": 0,
             "max_tokens": 2048,
             "top_p": 1,
-        }
+        },
+        fireworks_api_key=os.getenv("FIREWORKS_API_KEY")
     )
 
     few_shot = ""
@@ -285,7 +249,8 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
             "temperature": 0,
             "max_tokens": 2048,
             "top_p": 1,
-        }
+        },
+        fireworks_api_key=os.getenv("FIREWORKS_API_KEY")
     )
 
     # final_prompt = prompt_template.format(
@@ -299,7 +264,6 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
     return response.invoke({
         "ticker": ticker, "start_date": start_date, "end_date": end_date, "rows": output, "prompt": prompt
     })
-
 
 
 @tool("compare_stock_prices_tool", args_schema=CompareStockPriceVisualizationToolParams)
@@ -332,10 +296,12 @@ def compare_stock_prices_tool(start_date: str, end_date: str, ticker1: str, tick
 
     # Prepare the output and calculate cumulative returns
     first_price1 = rows1[0][1]
-    output1 = [f'{date}: {price}, Cumulative Return: {((price - first_price1) / first_price1) - 1 }' for date, price in rows1]
+    output1 = [
+        f'{date}: {price}, Cumulative Return: {((price - first_price1) / first_price1) - 1 }' for date, price in rows1]
 
     first_price2 = rows2[0][1]
-    output2 = [f'{date}: {price}, Cumulative Return: {((price - first_price2) / first_price2) - 1}' for date, price in rows2]
+    output2 = [
+        f'{date}: {price}, Cumulative Return: {((price - first_price2) / first_price2) - 1}' for date, price in rows2]
 
     output1 = "\n".join(output1)
     output2 = "\n".join(output2)
@@ -347,12 +313,11 @@ def compare_stock_prices_tool(start_date: str, end_date: str, ticker1: str, tick
     chart_prompt = '''
         As an experienced analyst, your task is to compare the cumulative returns of {ticker1} and {ticker2} between {start_date} and {end_date}. 
 
-        You will need to:
+        Using the 
+            Cumulative Return For {ticker1} : {output1}
+            Cumulative Return For {ticker2} : {output2}
 
-        1. Fetch the stock price data for both companies for the specified period.
-        2. Calculate the daily returns for each company.
-        3. Calculate the cumulative returns for each company based on the first date.
-        4. Generate a line graph with:
+        You will need to generate a line graph with:
             - The x-axis representing the dates.
             - The y-axis representing the cumulative returns.
             - Two lines, one for each company, with the height of each point representing the cumulative return on that date.
@@ -382,7 +347,8 @@ def compare_stock_prices_tool(start_date: str, end_date: str, ticker1: str, tick
             "temperature": 0,
             "max_tokens": 2048,
             "top_p": 1,
-        }
+        },
+        fireworks_api_key=os.getenv("FIREWORKS_API_KEY")
     )
 
     response = prompt_template | chat_model | StrOutputParser()
@@ -390,6 +356,6 @@ def compare_stock_prices_tool(start_date: str, end_date: str, ticker1: str, tick
     # Close the connection
     conn.close()
 
-    return ( response.invoke({
-        "ticker1": ticker1, "ticker2": ticker2, "start_date": start_date, "end_date": end_date, "rows1": output1, "rows2": output2, "prompt": prompt
+    return (response.invoke({
+        "ticker1": ticker1, "ticker2": ticker2, "start_date": start_date, "end_date": end_date, "output1": output1, "output2": output2, "prompt": prompt
     }))

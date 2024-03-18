@@ -1,6 +1,7 @@
 from calendar import c
 import json
 from os import write
+import re
 import numpy as np
 import streamlit as st
 from dotenv import load_dotenv
@@ -43,8 +44,11 @@ def main():
             st.markdown(user_query)
 
         with st.chat_message("AI"):
-            response = st.write_stream(run_main_agent(
-                user_query, st.session_state.chat_history))
+
+            response = run_main_agent(
+                user_query, st.session_state.chat_history)
+
+            response = st.write_stream(response)
 
             json_candidate = response[1].get("messages")[0].content
             chart_response = "chartline" in json_candidate or "chartbar" in json_candidate or "charttable" in json_candidate or "chartanswer" in json_candidate or "chartstackedcolumn" in json_candidate
@@ -67,7 +71,8 @@ def main():
                 comment = json_blob.get("comment")
                 if comment:
                     st.write(comment.replace("$", "\$"))
-            # st.markdown(response[2].get("messages")[0].content)
+            st.write(response[-1].get("messages")
+                     [0].content.replace("$", "\$"))
         st.session_state.chat_history.append(AIMessage(content=response))
 
 

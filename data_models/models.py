@@ -33,8 +33,6 @@ class StockPriceVisualizationToolParams(BaseModel):
         description="""Ticker for stock price visualization. For example, AAPL for Apple Inc.""")
 
 
-
-
 class CompareStockPriceVisualizationToolParams(BaseModel):
     start_date: str = Field(
         description="""Start date for stock price comparison. In the format YYYY-MM-DD.""")
