@@ -20,6 +20,7 @@ from langchain_community.chat_models.fireworks import ChatFireworks
 from langchain.sql_database import SQLDatabase
 from langchain import hub
 from langchain.schema.output_parser import StrOutputParser
+from sympy import true
 
 from data_models.models import StockPriceVisualizationToolParams, TranscriptAnalyzeToolParams, Text2SQLToolParams, CompareStockPriceVisualizationToolParams
 from langchain_core.prompts import ChatPromptTemplate
@@ -33,7 +34,6 @@ load_dotenv()
 MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
 
-@tool("transcript_analyze_tool", args_schema=TranscriptAnalyzeToolParams)
 def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
     """
     Used to analyze earning call transcript texts and extract information that could potentially signal risks or growth within a company. Cannot be used with other tools.
@@ -71,30 +71,38 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
             "max_tokens": 2048,
             "top_p": 1,
         },
-        fireworks_api_key=os.getenv("FIREWORKS_API_KEY")
+        fireworks_api_key=os.getenv("FIREWORKS_API_KEY"),
     )
 
     analyze_prompt = '''
-    As an expert financial analyst, analyze the earning call transcript texts and provide a comprehensive financial status of the company, indicating its growth or decline in value.
-    
-    Return a short $MARKDOWN_BLOB with the following information:
 
-    ```
-        - **Summary**: Short executive summary of the company's financial status, including key financial metrics.
-        - **Analysis**: Short analysis of the company's financial performance, broken down by business segment if applicable.
-        - **Key Points**: List of key points or themes from the earnings call, each with explanation, excerpts, and relevant data.
-        - **Outlook**: Analysis of the company's future outlook, based on earnings call and financial data.
-        - **Conclusion**: Conclusion that synthesizes the above information and highlights whether the company is on a growth trajectory.
-    ```
+        As an expert financial analyst, analyze the earning call transcript texts and provide a comprehensive financial status of the company, indicating its growth or decline in value.
+        Prepare a markdown report that includes the following sections, each with the relevant information and data to support your analysis:
+        
+        ### Parameters:
 
-    IMPORTANT: ONLY return the $MARKDOWN_BLOB and nothing else. $MARKDOWN_BLOB must be shorter than 100 words.
-        Do not include any additional text, notes, or comments in your response. 
-        Your response should begin and end with the $MARKDOWN_BLOB.
-        Begin!
+        quarter: {quarter}
+        year: {year}
+        ticker: {ticker}
 
-    $MARKDOWN_BLOB:
+        ### Final Report Desired Format:
 
+        - An executive summary of the company's financial status, including key financial metrics such as revenue, net income, and cash flow.
+        - A detailed analysis of the company's financial performance, broken down by business segment if applicable.
+        - A list of key points or themes from the earnings call, each with:
+            - A brief explanation of why the point is important.
+            - Relevant excerpts from the transcript, presented as bullet points, that illustrate or support the key point.
+            - Any relevant financial data or metrics associated with the key point.
+        - An analysis of the company's future outlook, based on statements made during the earnings call and the company's financial data.
+        - A conclusion that synthesizes the above information and highlights whether the company is on a growth trajectory or facing a decline. This should include any significant risks or opportunities identified during the analysis.
+        
+        Final Report:
     '''
+    prompt_template = ChatPromptTemplate.from_template(
+        analyze_prompt)
+
+    final_response = prompt_template.format_prompt(
+        quarter=quarter, year=year, ticker=ticker).to_string()
 
     qa = RetrievalQA.from_chain_type(
         llm=llm,
@@ -104,7 +112,7 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
             search_kwargs={"k": 10, 'filter': {'source': f'{ticker.lower()}_{quarter.lower()}_{year}.txt'}}),
     )
 
-    return str(qa(analyze_prompt))
+    return qa(final_response)
 
 
 @tool("text2sql_tool", args_schema=Text2SQLToolParams)
