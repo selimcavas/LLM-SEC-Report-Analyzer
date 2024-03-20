@@ -1,5 +1,7 @@
 
 import re
+from sre_parse import parse_template
+from langchain_core.output_parsers import JsonOutputParser
 from dotenv import load_dotenv
 from langchain.agents import tool
 from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
@@ -20,6 +22,7 @@ from langchain_community.chat_models.fireworks import ChatFireworks
 from langchain.sql_database import SQLDatabase
 from langchain import hub
 from langchain.schema.output_parser import StrOutputParser
+
 from sympy import true
 
 from data_models.models import StockPriceVisualizationToolParams, TranscriptAnalyzeToolParams, Text2SQLToolParams, CompareStockPriceVisualizationToolParams
@@ -115,7 +118,6 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
     return qa(final_response)
 
 
-@tool("text2sql_tool", args_schema=Text2SQLToolParams)
 def text2sql_tool(text: str) -> str:
     """
     Used to convert user's prompts to SQL query to obtain financial data. Cannot be used with other tools.
@@ -130,52 +132,107 @@ def text2sql_tool(text: str) -> str:
         fireworks_api_key=os.getenv("FIREWORKS_API_KEY")
     )
 
-    few_shot = ""
-    with open("sql_agent_prompts.json", "r") as file:
-        few_shot = json.load(file)
-
     database = SQLDatabase.from_uri(database_uri="sqlite:///database.db")
-    # check if connection is created successfully
 
-    prompt = hub.pull("rlm/text-to-sql")
+    template = '''
+        You are a financial data extractor. Analyze the following question.
 
-    # Create chain with LangChain Expression Language
-    inputs = {
-        "table_info": lambda x: database.get_table_info(),
-        "input": lambda x: x["question"],
-        "few_shot_examples": lambda x: few_shot,
-        "dialect": lambda x: database.dialect,
-    }
+        Question: {question}
 
-    sql_response = (
-        inputs
-        | prompt
-        | chat_model.bind(stop=["\nSQLResult:"])
-        | StrOutputParser()
-    )
+        Table Info: {table_info}
 
-    # Call with a given question
-    response = sql_response.invoke(
-        {"question": str(text)})
+        If the question pertains to financial data that can be extracted from the table, 
+        return the word RELATED. If the question does not pertain to the table or the data in the table, 
+        return the word UNRELATED. Do not add any additional information or comments.
+        
+        ***Only return RELATED or UNRELATED.***
 
-    start = response.find('"') + 1
+        Begin!
 
-    # Find the end of the SQL query
-    end = response.rfind('"')
 
-    # Extract the SQL query
-    sql_query = response[start:end]
-    print(sql_query)
+        '''
 
-    # Execute the generated SQL query on the database
-    query_result = database._execute(sql_query)
+    prompt_template = ChatPromptTemplate.from_template(template)
+
+    response = prompt_template | chat_model | StrOutputParser()
+
+    isRelated = response.invoke({
+        "question": text, "table_info": database.get_table_info()
+    })
+
+    print("🟢", isRelated)
+
+    if isRelated.strip() == "RELATED":
+
+        few_shot = ""
+        with open("sql_agent_prompts.json", "r") as file:
+            few_shot = json.load(file)
+
+        # check if connection is created successfully
+
+        prompt = hub.pull("rlm/text-to-sql")
+
+        # Create chain with LangChain Expression Language
+        inputs = {
+            "table_info": lambda x: database.get_table_info(),
+            "input": lambda x: x["question"],
+            "few_shot_examples": lambda x: few_shot,
+            "dialect": lambda x: database.dialect,
+        }
+
+        sql_response = (
+            inputs
+            | prompt
+            | chat_model.bind(stop=["\nSQLResult:"])
+            | StrOutputParser()
+        )
+
+        # Call with a given question
+        response = sql_response.invoke(
+            {"question": str(text)})
+
+        start = response.find('"') + 1
+
+        # Find the end of the SQL query
+        end = response.rfind('"')
+
+        # Extract the SQL query
+        sql_query = response[start:end]
+        print(sql_query)
+
+        # Execute the generated SQL query on the database
+        query_result = database._execute(sql_query)
+
+        parse_template = ''' 
+        Using the following sql query result and user question to form a short answer. Parse financial values using the seperator and return the result in a human readable format.
+        
+        User Question: {user_question}
+
+        SQL Query Result: {query_result}
+
+        Final Answer:
+        '''
+
+        parse_temp = ChatPromptTemplate.from_template(parse_template)
+
+        response = parse_temp | chat_model | StrOutputParser()
+
+        query_result = response.invoke(
+            {"user_question": text, "query_result": query_result})
+
+    elif isRelated.strip() == "UNRELATED":
+        query_result = """Question is unrelated, please ask something related to the financial data available. Make sure you provide quarter and year information.
+        For example:
+        
+        - Can you list top 5 companies based on the EBITDA data in 2023 q2?
+        """
+    else:
+        query_result = "An error occured in the text2sql tool!"
 
     return query_result
 
 
-# this is a new tool template ( not in production yet)
-@tool("stock_prices_visualizer_tool", args_schema=StockPriceVisualizationToolParams)
-def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, prompt: str) -> str:
+def stock_prices_visualizer_tool(start: str, end: str, ticker: str) -> str:
     '''
     Used to visualize stock prices of a company in a given date range. Cannot be used with other tools.
     '''
@@ -192,55 +249,22 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
     '''
 
     # Execute the SQL query
-    c.execute(sql_query, (start_date, end_date, ticker))
+    c.execute(sql_query, (start, end, ticker))
     rows = c.fetchall()
-
-    # Check if any data was fetched
-    if not rows:
-        return f'No data for {ticker} between {start_date} and {end_date}'
-
-    output = ""
-    # Prepare the output
-    for row in rows:
-        date, price = row
-        output += f'{date}: {price}\n'
 
     chart_prompt = '''
 
         You are an experienced analyst that can generate stock price charts and provide insightful comments about them.
-        Generate an appropriate chart for the stock prices of {ticker} between {start_date} and {end_date}, and provide a brief comment about the price trends or significant events you notice in the data.
-        Use the {rows} and below output format for generating the chart and the comment for the question, do not round any values:
-        
-        {prompt} 
+        Generate an appropriate chart for the stock prices of {ticker} between {start} and {end}, and provide a brief comment about the price trends or significant events you notice in the data.
+        Use the {rows} and below output format for generating the $JSON_BLOB, do not round any values:
+       
 
-        The way you generate a chart is by creating a $JSON_BLOB.
-        
-
-        1. If the query requires a table, $JSON_BLOB should be like this:
-        ```{{"charttable": 
-                {{"columns": ["column1", "column2", ...], "data": [[value1, value2, ...], [value1, value2, ...], ...]}}, "comment": "Your comment here"}}
-            }}
-        ```
-
-        2. For a bar chart, $JSON_BLOB should be like this:
-        ```{{"chartbar": 
-                {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}, "comment": "Your comment here"}}
-        }}
-        ```
-
-        3. If a line chart is more appropriate, $JSON_BLOB should look like this:
-        ```{{"chartline": 
+        $JSON_BLOB should look like this:
+        ```{{"line": 
                 {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}, "comment": "Your comment here"}}
             }}
         ```
 
-        Note: We only accommodate two types of charts: "bar" and "line".
-
-        4. If the answer does not require a chart, simply respond with the following $JSON_BLOB:
-        ```
-            {{"chartanswer": "Your answer here"}}
-        ```
-        
         IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
         Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
         Begin!
@@ -261,16 +285,13 @@ def stock_prices_visualizer_tool(start_date: str, end_date: str, ticker: str, pr
         fireworks_api_key=os.getenv("FIREWORKS_API_KEY")
     )
 
-    # final_prompt = prompt_template.format(
-    #     ticker=ticker, start_date=start_date, end_date=end_date, rows=output, prompt=prompt)
-
-    response = prompt_template | chat_model | StrOutputParser()
+    response = prompt_template | chat_model | JsonOutputParser()
 
     # Close the connection
     conn.close()
 
     return response.invoke({
-        "ticker": ticker, "start_date": start_date, "end_date": end_date, "rows": output, "prompt": prompt
+        "ticker": ticker, "start": start, "end": end, "rows": rows
     })
 
 

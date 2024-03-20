@@ -113,4 +113,4 @@ if user_query is not None and user_query != "":
         st.write(response["result"].replace("$", "\$"))
 
     st.session_state.chat_history_transcript.append(
-        AIMessage(content=response["result"]))
+        AIMessage(content=response["result"].replace("$", "\$")))
