@@ -29,6 +29,7 @@ from data_models.models import StockPriceVisualizationToolParams, TranscriptAnal
 from langchain_core.prompts import ChatPromptTemplate
 # after new scract tool:
 import sqlite3
+from typing import List
 
 
 load_dotenv()
@@ -39,7 +40,7 @@ MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
 def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
     """
-    Used to analyze earning call transcript texts and extract information that could potentially signal risks or growth within a company. Cannot be used with other tools.
+    Used to analyze earning call transcript texts and extract information that could potentially signal risks or growth within a company.
 
     """
 
@@ -120,7 +121,7 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
 
 def text2sql_tool(text: str) -> str:
     """
-    Used to convert user's prompts to SQL query to obtain financial data. Cannot be used with other tools.
+    Used to convert user's prompts to SQL query to obtain financial data.
     """
     chat_model = ChatFireworks(
         model=MODEL_ID,
@@ -234,7 +235,7 @@ def text2sql_tool(text: str) -> str:
 
 def stock_prices_visualizer_tool(start: str, end: str, ticker: str) -> str:
     '''
-    Used to visualize stock prices of a company in a given date range. Cannot be used with other tools.
+    Used to visualize stock prices of a company in a given date range.
     '''
     # Connect to the SQLite database
     conn = sqlite3.connect('database.db')
@@ -295,72 +296,65 @@ def stock_prices_visualizer_tool(start: str, end: str, ticker: str) -> str:
     })
 
 
-@tool("compare_stock_prices_tool", args_schema=CompareStockPriceVisualizationToolParams)
-def compare_stock_prices_tool(start_date: str, end_date: str, ticker1: str, ticker2: str, prompt: str) -> str:
+def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]) -> str:
     '''
-    Used to compare stock prices and returns of two companies in a given date range. Cannot be used with other tools.
+    Used to compare cumulative returns for the stock prices of multiple companies in a given date range. 
     '''
     # Connect to the SQLite database
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
 
     # Prepare the SQL queries
-    sql_query1 = '''
+    sql_query = '''
         SELECT date, price
         FROM stock_prices
         WHERE date BETWEEN ? AND ? AND ticker = ?
         ORDER BY date
     '''
-    sql_query2 = sql_query1  # The same query structure is used for the second ticker
 
-    # Execute the SQL queries
-    c.execute(sql_query1, (start_date, end_date, ticker1))
-    rows1 = c.fetchall()
-    c.execute(sql_query2, (start_date, end_date, ticker2))
-    rows2 = c.fetchall()
+    # Execute the SQL query for each ticker and prepare the output
+    outputs = []
+    for ticker in tickers:
+        c.execute(sql_query, (start, end, ticker))
+        rows = c.fetchall()
 
-    # Check if any data was fetched
-    if not rows1 or not rows2:
-        return f'No data for {ticker1} or {ticker2} between {start_date} and {end_date}'
+        # Check if any data was fetched
+        if not rows:
+            return f'No data for {ticker} between {start} and {end}'
 
-    # Prepare the output and calculate cumulative returns
-    first_price1 = rows1[0][1]
-    output1 = [
-        f'{date}: {price}, Cumulative Return: {((price - first_price1) / first_price1) - 1 }' for date, price in rows1]
+        # Prepare the output and calculate cumulative returns
+        first_price = rows[0][1]
+        output = [
+            f'{date}: {((price - first_price) / first_price) - 1 }' for date, price in rows]
+        output = "\n".join(output)
+        outputs.append(output)
 
-    first_price2 = rows2[0][1]
-    output2 = [
-        f'{date}: {price}, Cumulative Return: {((price - first_price2) / first_price2) - 1}' for date, price in rows2]
+        # Print the outputs
+    for i, output in enumerate(outputs):
+        print(f"🟢 Output for {tickers[i]}: {output}")
 
-    output1 = "\n".join(output1)
-    output2 = "\n".join(output2)
-
-    print("🟢", output1)
-    print("🟢", output2)
-
-    # Modify the chart_prompt to include instructions for comparing the two companies
     chart_prompt = '''
-        As an experienced analyst, your task is to compare the cumulative returns of {ticker1} and {ticker2} between {start_date} and {end_date}. 
+        As an experienced analyst, your task is to compare the cumulative returns of {tickers} between {start} and {end}. 
 
-        Using the 
-            Cumulative Return For {ticker1} : {output1}
-            Cumulative Return For {ticker2} : {output2}
+        Use the output from the SQL queries to display the cumulative returns for each company.
+        SQL Output: {output}
 
         You will need to generate a line graph with:
             - The x-axis representing the dates.
             - The y-axis representing the cumulative returns.
-            - Two lines, one for each company, with the height of each point representing the cumulative return on that date.
+            - A different line, for each company, with the height of each point representing the cumulative return on that date.
 
-        The graph should clearly show the comparative performance of the two companies over the given period. 
+        The graph should clearly show the comparative performance of the the companies over the given period. 
 
-        Please include a brief analysis of the graph, highlighting any notable trends or points of interest.
+        Please include a brief analysis of the graph, highlighting any notable trends or points of interest in the comment field.
 
         The way you generate a graph is by creating a $JSON_BLOB.
 
-        For a line graph, $JSON_BLOB should be like this:
-        ```{{"chartline": 
-                {{"columns": ["Date", "{ticker1}", "{ticker2}"], "data": [["2020-01-01", value1, value2], ["2020-01-02", value1, value2], ...]}}, "comment": "Your comment here"}}
+        $JSON_BLOB should be like this:
+        ```{{"line": 
+                {{"columns": ["Date", {tickers}], "data": [["2020-01-01", value1, value2, ...], ["2020-01-02", value1, value2 ...], ...]}}, "comment": "Your brief analysis and comparison here."}}
             }}
+        ```
 
         IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
         Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
@@ -380,11 +374,11 @@ def compare_stock_prices_tool(start_date: str, end_date: str, ticker1: str, tick
         fireworks_api_key=os.getenv("FIREWORKS_API_KEY")
     )
 
-    response = prompt_template | chat_model | StrOutputParser()
+    response = prompt_template | chat_model | JsonOutputParser()
 
     # Close the connection
     conn.close()
 
-    return (response.invoke({
-        "ticker1": ticker1, "ticker2": ticker2, "start_date": start_date, "end_date": end_date, "output1": output1, "output2": output2, "prompt": prompt
-    }))
+    return response.invoke({
+        "tickers": tickers, "start": start, "end": end, "output": outputs,
+    })
