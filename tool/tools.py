@@ -325,7 +325,7 @@ def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]) ->
         # Prepare the output and calculate cumulative returns
         first_price = rows[0][1]
         output = [
-            f'{date}: {((price - first_price) / first_price) - 1 }' for date, price in rows]
+            f'{date}: {((price - first_price) / first_price) * 100 }' for date, price in rows]
         output = "\n".join(output)
         outputs.append(output)
 

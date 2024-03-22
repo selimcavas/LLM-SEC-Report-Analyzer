@@ -1,80 +1,31 @@
-from calendar import c
-import json
-from os import write
-import re
-import numpy as np
 import streamlit as st
-from dotenv import load_dotenv
-from langchain_experimental.agents.agent_toolkits import create_csv_agent
-from streamlit_chat import message
-from agent.agent import run_main_agent
-from langchain_core.messages import AIMessage, HumanMessage
 
-from st_chart_response import write_answer
+st.set_page_config(
+    page_title="LLM Supported Finance ChatBot",
+    page_icon="🚀",
+)
 
+st.write("# Welcome to Our LLM Supported Finance ChatBot! 😎")
 
-def main():
-    load_dotenv()
-    st.set_page_config(page_title='SEC Filing Analyzer',
-                       page_icon=':money_with_wings:')
-    st.header('SEC Filing Analyzer :money_with_wings:', divider='green')
+# Add empty space
+for _ in range(100):
+    st.sidebar.empty()
 
-    # session state
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = [
-            AIMessage(
-                content="Hello, I am a bot that can assist in financial data for NASDAQ100 companies. How can I help you?"),
-        ]
+st.sidebar.success("Please choose one of tools above to get started.")
 
-    # conversation
-    for message in st.session_state.chat_history:
-        if isinstance(message, AIMessage):
-            with st.chat_message("AI"):
-                st.write(message.content)
-        elif isinstance(message, HumanMessage):
-            with st.chat_message("Human"):
-                st.write(message.content)
+st.markdown(
+    """
+    Welcome to our application! This app is designed to help you to quickliy extract some beneficial insgita about NASDAQ100 companies.
+    
+    **👈 To get started, please select a tool given at the right-hand sidebar.**
 
-    # user input
-    user_query = st.chat_input("Type your message here...")
-    if user_query is not None and user_query != "":
-        st.session_state.chat_history.append(HumanMessage(content=user_query))
+    ### Ready to dive in?
+    - Try out our [Cumulative Return Comparison](http://localhost:8501/Cumulative_Return_Comparison). Example question: "Can you compare the Apple, Microsoft and Amazon stock price returns between 2023 April 1 - 2023 May 1?"
+    - Explore our [Financial Data Search](http://localhost:8501/Financial_Data_Search). Example question: "Can you get me the highest 5 Amortization values and the tickers for those values in 2023 q2 using the sql database?"
+    - Chek our [Transcript Analyze Tool](http://localhost:8501/Transcript_Analyze). Example: Can you evaluate the apple 2022 q2 earning call?
 
-        with st.chat_message("Human"):
-            st.markdown(user_query)
-
-        with st.chat_message("AI"):
-
-            response = run_main_agent(
-                user_query, st.session_state.chat_history)
-
-            response = st.write_stream(response)
-
-            json_candidate = response[1].get("messages")[0].content
-            chart_response = "chartline" in json_candidate or "chartbar" in json_candidate or "charttable" in json_candidate or "chartanswer" in json_candidate or "chartstackedcolumn" in json_candidate
-
-            if chart_response:
-                print("🟢 First JSON candidate: ", json_candidate, "\n")
-                # Find the first and last curly brackets
-                first_bracket = json_candidate.find('{')
-                last_bracket = json_candidate.rfind('}')
-
-                # Extract the substring between the first and last curly brackets
-                json_candidate = json_candidate[first_bracket:last_bracket+1]
-                print("Before loading JSON: ", json_candidate)
-
-                json_blob = json.loads(json_candidate)
-                print(json_blob)
-                write_answer(json_blob)
-
-                # Extract the comment from the JSON blob and write it to the app frontend
-                comment = json_blob.get("comment")
-                if comment:
-                    st.write(comment.replace("$", "\$"))
-            st.write(response[-1].get("messages")
-                     [0].content.replace("$", "\$"))
-        st.session_state.chat_history.append(AIMessage(content=response))
-
-
-if __name__ == '__main__':
-    main()
+    ### Need help from developers?
+    - Contact us at [metin.arkanoz@ozu.edu.tr](mailto:metin.arkanoz@ozu.edu.tr)
+    - Contact us at [selim.cavas@ozu.edu.tr](mailto:selim.cavas@ozu.edu.tr)
+"""
+)
