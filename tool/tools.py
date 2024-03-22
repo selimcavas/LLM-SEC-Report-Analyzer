@@ -1,4 +1,5 @@
 
+import datetime
 import re
 from sre_parse import parse_template
 from langchain_core.output_parsers import JsonOutputParser
@@ -13,6 +14,8 @@ from langchain_openai import OpenAIEmbeddings
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 
+import numpy as np
+import pandas as pd
 from pinecone import Pinecone
 # from langchain.vectorstores import Pinecone
 from langchain_pinecone import PineconeVectorStore
@@ -23,6 +26,7 @@ from langchain.sql_database import SQLDatabase
 from langchain import hub
 from langchain.schema.output_parser import StrOutputParser
 
+from sklearn.preprocessing import MinMaxScaler
 from sympy import true
 
 from data_models.models import StockPriceVisualizationToolParams, TranscriptAnalyzeToolParams, Text2SQLToolParams, CompareStockPriceVisualizationToolParams
@@ -30,6 +34,11 @@ from langchain_core.prompts import ChatPromptTemplate
 # after new scract tool:
 import sqlite3
 from typing import List
+from keras.preprocessing.sequence import TimeseriesGenerator
+from keras.models import Sequential
+from keras.layers import LSTM
+from keras.layers import Dense
+
 
 
 load_dotenv()
@@ -382,3 +391,125 @@ def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]) ->
     return response.invoke({
         "tickers": tickers, "start": start, "end": end, "output": outputs,
     })
+
+
+
+def stock_prices_predictor_tool(start_date: str, end_date: str, ticker: str) -> str:
+    # Connect to the SQLite database
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+
+    # Prepare the SQL query
+    sql_query = '''
+        SELECT date, price
+        FROM stock_prices
+        WHERE date BETWEEN ? AND ? AND ticker = ?
+        ORDER BY date
+    '''
+
+    # Execute the SQL query
+    c.execute(sql_query, (start_date, end_date, ticker))
+    rows = c.fetchall()
+
+    # Check if any data was fetched
+    if not rows:
+        return f'No data for {ticker} between {start_date} and {end_date}'
+
+    # Convert the data to a pandas DataFrame
+    df = pd.DataFrame(rows, columns=['date', 'price'])
+
+    # Preprocess the data for the LSTM model
+    scaler = MinMaxScaler()
+    scaled_data = scaler.fit_transform(df['price'].values.reshape(-1,1))
+
+    look_back = 15
+    forward_days = 5
+    n_features = 1
+
+    generator = TimeseriesGenerator(scaled_data, scaled_data, length=look_back, batch_size=20)     
+
+    # Define the LSTM model
+    model = Sequential()
+    model.add(LSTM(200, activation='relu', input_shape=(look_back, n_features)))
+    model.add(Dense(forward_days))
+
+    # Compile and train the model
+    model.compile(optimizer='adam', loss='mse')
+    model.fit_generator(generator,epochs=30)
+
+    # Use the model to predict future stock prices
+    pred_list = []
+
+    batch = scaled_data[-look_back:].reshape((1, look_back, n_features))
+
+    for i in range(forward_days):   
+        pred_list.append(model.predict(batch)[0]) 
+        batch = np.append(batch[:,1:,:],[[pred_list[i]]],axis=1)
+
+    # Inverse transform the predicted data
+    predicted_prices = scaler.inverse_transform(pred_list)
+
+    # Generate predicted_dates
+    last_date = datetime.strptime(end_date, '%Y-%m-%d')
+    predicted_dates = [(last_date + datetime.timedelta(days=i+1)).strftime('%Y-%m-%d') for i in range(forward_days)]
+
+     # Append predicted prices and dates to rows
+    for date, price in zip(predicted_dates, predicted_prices.flatten()):
+        rows.append((date, price))
+
+    print(f"🟢 Predicted and past prices at the same place: {rows}")
+
+    
+    # prompt part:
+    chart_prompt = '''
+
+        You are an experienced analyst that can generate stock price charts and provide insightful comments about them.
+        Generate an appropriate chart for the stock prices of {ticker} between {start_date} and {end_date}, and provide a brief comment about the price trends or significant events you notice in the data.
+        Use the {rows} and below output format for generating the chart and the comment for the question, do not round any values:
+        
+        The way you generate a chart is by creating a $JSON_BLOB.
+        
+        $JSON_BLOB should look like this:
+        ```{{"line": 
+                {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}, "comment": "Your comment here"}}
+            }}
+        ```
+        
+        IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
+        Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
+        Begin!
+
+        $JSON_BLOB:
+
+    '''
+
+    prompt_template = ChatPromptTemplate.from_template(chart_prompt)
+
+    chat_model = ChatFireworks(
+        model=MODEL_ID,
+        model_kwargs={
+            "temperature": 0,
+            "max_tokens": 2048,
+            "top_p": 1,
+        }
+    )
+
+
+    response = prompt_template | chat_model | StrOutputParser()
+
+    # Close the connection
+    conn.close()
+
+    # Convert the fetched data and predicted data to a list of tuples
+    actual_data = list(zip(df['date'].values, df['price'].values))
+    predicted_data = list(zip(predicted_dates, predicted_prices.flatten()))
+
+    # Combine the actual and predicted data
+    output = actual_data + predicted_data
+
+    # Convert the output to a JSON string
+    output = json.dumps(output)
+
+    # Use output in the return part
+    return response.invoke({
+        "ticker": ticker, "start_date": start_date, "end_date": end_date, "rows": output})

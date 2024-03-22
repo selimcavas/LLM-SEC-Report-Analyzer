@@ -7,9 +7,6 @@ st.set_page_config(
 
 st.write("# Welcome to Our LLM Supported Finance ChatBot! 😎")
 
-# Add empty space
-for _ in range(100):
-    st.sidebar.empty()
 
 st.sidebar.success("Please choose one of tools above to get started.")
 

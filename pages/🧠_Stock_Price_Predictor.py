@@ -1,30 +1,33 @@
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
+
 from streamlit_chat import message
+
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.chat_models.fireworks import ChatFireworks
 from langchain_core.output_parsers import JsonOutputParser
 import os
-from tool.tools import stock_prices_visualizer_tool
+
+from tool.tools import stock_prices_predictor_tool
 
 load_dotenv()
 MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
-st.set_page_config(page_title='Stock Price Analyzer & Visualizer',
-                   page_icon='🤑')
-st.header('Stock Price Analyzer & Visualizer 🤑', divider='green')
+st.set_page_config(page_title='Stock Price Predictor',
+                   page_icon='🧠')
+st.header('Stock Price Predictor 🧠', divider='green')
 
 # session state
-if "chat_history_stock_compare" not in st.session_state:
-    st.session_state.chat_history_stock_compare = [
+if "chat_history_stock_prediction" not in st.session_state:
+    st.session_state.chat_history_stock_prediction = [
         AIMessage(
-            content="This tool is used to visualize stock prices of a company in a given date range."),
+            content="This tool is used to predict stock prices of a company in a given date range."),
     ]
 
 # conversation
-for message in st.session_state.chat_history_stock_compare:
+for message in st.session_state.chat_history_stock_prediction:
     if isinstance(message, AIMessage):
         with st.chat_message("AI"):
             st.write(message.content)
@@ -35,7 +38,7 @@ for message in st.session_state.chat_history_stock_compare:
 # user input
 user_query = st.chat_input("Type your message here...")
 if user_query is not None and user_query != "":
-    st.session_state.chat_history_stock_compare.append(
+    st.session_state.chat_history_stock_prediction.append(
         HumanMessage(content=user_query))
 
     with st.chat_message("Human"):
@@ -96,7 +99,7 @@ if user_query is not None and user_query != "":
         end_date = json_blob.get("end")
         ticker = json_blob.get("ticker")
 
-        response = stock_prices_visualizer_tool(
+        response = stock_prices_predictor_tool(
             start_date, end_date, ticker)
 
         data = response["line"]
@@ -112,5 +115,5 @@ if user_query is not None and user_query != "":
 
         st.write(response["comment"].replace("$", "\$"))
 
-    st.session_state.chat_history_stock_compare.append(
+    st.session_state.chat_history_stock_prediction.append(
         AIMessage(content=response["comment"].replace("$", "\$")))
