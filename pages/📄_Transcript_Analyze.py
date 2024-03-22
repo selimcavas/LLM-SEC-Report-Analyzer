@@ -20,8 +20,8 @@ load_dotenv()
 MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
 st.set_page_config(page_title='Earning Call Transcript Analyzer',
-                   page_icon=':money_with_wings:')
-st.header('Earning Call Transcript Analyzer :money_with_wings:', divider='green')
+                   page_icon='📄')
+st.header('Earning Call Transcript Analyzer 📄', divider='green')
 
 # session state
 if "chat_history_transcript" not in st.session_state:

@@ -12,9 +12,9 @@ from tool.tools import compare_cumulative_returns_tool
 load_dotenv()
 MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
-st.set_page_config(page_title='Stock Price Analyzer & Visualizer',
-                   page_icon=':money_with_wings:')
-st.header('Cumulative Return Comparison :money_with_wings:', divider='green')
+st.set_page_config(page_title='Cumulative Return Comparison',
+                   page_icon='📊')
+st.header('Compare Cumulative Returns 📊', divider='green')
 
 # session state
 if "chat_history_cumulative" not in st.session_state:

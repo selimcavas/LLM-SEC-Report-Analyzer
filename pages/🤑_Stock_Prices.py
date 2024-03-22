@@ -21,8 +21,8 @@ load_dotenv()
 MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
 st.set_page_config(page_title='Stock Price Analyzer & Visualizer',
-                   page_icon=':money_with_wings:')
-st.header('Stock Price Analyzer & Visualizer :money_with_wings:', divider='green')
+                   page_icon='🤑')
+st.header('Stock Price Analyzer & Visualizer 🤑', divider='green')
 
 # session state
 if "chat_history_stock_compare" not in st.session_state:
