@@ -34,7 +34,9 @@ from langchain_core.prompts import ChatPromptTemplate
 # after new scract tool:
 import sqlite3
 from typing import List
-from keras.preprocessing.sequence import TimeseriesGenerator
+
+from keras._tf_keras.keras.preprocessing.sequence import TimeseriesGenerator
+
 from keras.models import Sequential
 from keras.layers import LSTM
 from keras.layers import Dense
@@ -435,16 +437,17 @@ def stock_prices_predictor_tool(start_date: str, end_date: str, ticker: str) -> 
 
     # Compile and train the model
     model.compile(optimizer='adam', loss='mse')
-    model.fit_generator(generator,epochs=30)
+    model.fit(generator,epochs=30)
 
     # Use the model to predict future stock prices
     pred_list = []
 
     batch = scaled_data[-look_back:].reshape((1, look_back, n_features))
-
+    
     for i in range(forward_days):   
-        pred_list.append(model.predict(batch)[0]) 
-        batch = np.append(batch[:,1:,:],[[pred_list[i]]],axis=1)
+        pred = model.predict(batch)[0]
+        pred_array = np.array([pred] * batch.shape[2]).reshape(1, 1, batch.shape[2])
+        batch = np.append(batch[:,1:,:], pred_array, axis=1)
 
     # Inverse transform the predicted data
     predicted_prices = scaler.inverse_transform(pred_list)
