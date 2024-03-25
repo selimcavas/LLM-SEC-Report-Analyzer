@@ -47,35 +47,33 @@ if user_query is not None and user_query != "":
     with st.chat_message("AI"):
 
         template = '''
-        You are an expert value extractor, look at the following question
-         
-          Question: {question} 
-        
-        Extract start date, end date and ticker from the question. 
-        
-            start: Start date for stock price visualization. In the format YYYY-MM-DD.
-    
-            end: End date for stock price visualization. In the format YYYY-MM-DD.
-            
-            ticker: Ticker for stock price visualization. For example, AAPL for Apple Inc.
+            You are an expert value extractor, look at the following question
 
-        You should return a $JSON_BLOB with the extracted values such as: 
+              Question: {question} 
 
-        ```
-            {{
-                "start": "2022-01-01",
-                "end": "2022-01-01",
-                "ticker": "AAPL"
-            }}
-        ```
+            Extract ticker and prediction months from the question. 
 
-        IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
-        Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
-        Begin!
+                ticker: Ticker for stock price prediction. For example, AAPL for Apple Inc.
 
-        $JSON_BLOB:
+                months: Prediction period for stock price, only a single integer value showing the number of months.
+                For example, "1", "6", etc.
 
-        '''
+            You should return a $JSON_BLOB with the extracted values such as: 
+
+            ```
+                {{
+                    "ticker": "AAPL",
+                    "months": "1"
+                }}
+            ```
+
+            IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
+            Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
+            Begin!
+
+            $JSON_BLOB:
+
+            '''
 
         prompt_template = ChatPromptTemplate.from_template(template)
 
@@ -95,25 +93,19 @@ if user_query is not None and user_query != "":
             "question": user_query
         })
 
-        start_date = json_blob.get("start")
-        end_date = json_blob.get("end")
+        print(json_blob)
+
+        months = json_blob.get("months")
         ticker = json_blob.get("ticker")
 
-        response = stock_prices_predictor_tool(
-            start_date, end_date, ticker)
+        df = stock_prices_predictor_tool(months, ticker)
 
-        data = response["line"]
 
         try:
-            df_data = {col: [x[i] for x in data['data']]
-                       for i, col in enumerate(data['columns'])}
-            df = pd.DataFrame(df_data)
-            df.set_index("Date", inplace=True)
             st.line_chart(df)
         except ValueError:
-            print(f"Couldn't create DataFrame from data: {data}")
+            print("Couldn't create DataFrame")
 
-        st.write(response["comment"].replace("$", "\$"))
 
     st.session_state.chat_history_stock_prediction.append(
-        AIMessage(content=response["comment"].replace("$", "\$")))
+        AIMessage(content=df.to_json()))
