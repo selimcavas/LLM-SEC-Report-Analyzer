@@ -1,18 +1,13 @@
 
 import datetime
-import re
-from sre_parse import parse_template
 from langchain_core.output_parsers import JsonOutputParser
 from dotenv import load_dotenv
-from langchain.agents import tool
-from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
 
 import os
 import json
 from langchain_openai import OpenAIEmbeddings
 
 from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
 
 import numpy as np
 import pandas as pd
@@ -27,9 +22,7 @@ from langchain import hub
 from langchain.schema.output_parser import StrOutputParser
 
 from sklearn.preprocessing import MinMaxScaler
-from sympy import true
 
-from data_models.models import StockPriceVisualizationToolParams, TranscriptAnalyzeToolParams, Text2SQLToolParams, CompareStockPriceVisualizationToolParams
 from langchain_core.prompts import ChatPromptTemplate
 # after new scract tool:
 import sqlite3
@@ -506,6 +499,61 @@ def stock_prices_predictor_tool(months: str, ticker: str) -> str:
     # Combine the actual and predicted data
     output = actual_data + predicted_data
 
+    # Convert the lists to DataFrames
+    actual_data_df = pd.DataFrame(actual_data, columns=['date', 'price'])
+    predicted_data_df = pd.DataFrame(predicted_data, columns=['date', 'price'])
+
+    # Calculate the price change
+    price_change = (predicted_data_df['price'].values[-1] - actual_data_df['price'].values[-1]) / actual_data_df['price'].values[-1] * 100
+
+    # Get the last actual and predicted dates and prices
+    last_actual_date = actual_data_df['date'].values[-1]
+    last_predicted_date = predicted_data_df['date'].values[-1]
+
+    last_actual_price = actual_data_df['price'].values[-1]
+    last_predicted_price = predicted_data_df['price'].values[-1]
+    
+    template = '''
+            You are an expert financial analyzer, look at the following stock price change for the company with ticker: {ticker}
+            The change given to you was gathered by using LSTM and the user asked to predict the next {months} months.
+            
+            The stock price change is as follows: {price_change}
+            Last actual date: {last_actual_date}
+            Last predicted date: {last_predicted_date}
+            Last actual price: {last_actual_price}
+            Last predicted price: {last_predicted_price}
+
+            Form a brief maximum 2 sentence analysis according to the given data. Provide change with percent and also make sure all data is human readable.
+
+            Begin!
+
+    '''
+
+    prompt_template = ChatPromptTemplate.from_template(template)
+
+    chat_model = ChatFireworks(
+        model=MODEL_ID,
+        model_kwargs={
+            "temperature": 0,
+            "max_tokens": 2048,
+            "top_p": 1,
+        },
+        fireworks_api_key=os.getenv("FIREWORKS_API_KEY")
+    )
+
+    trend_change_comment = prompt_template | chat_model | StrOutputParser()
+
+    llm_comment = trend_change_comment.invoke({
+        "ticker": ticker,
+        "months": months,
+        "price_change": price_change,
+        "last_actual_date": last_actual_date,
+        "last_predicted_date": last_predicted_date,
+        "last_actual_price": last_actual_price,
+        "last_predicted_price": last_predicted_price
+
+    }).replace("$", "\$")
+    
     # Convert the output to a DataFrame
     output_df = pd.DataFrame(output, columns=['date', 'prices'])
 
@@ -515,4 +563,4 @@ def stock_prices_predictor_tool(months: str, ticker: str) -> str:
     # Set the 'date' column as the index
     output_df.set_index('date', inplace=True)
 
-    return output_df
+    return output_df, llm_comment

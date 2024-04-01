@@ -98,13 +98,15 @@ if user_query is not None and user_query != "":
         months = json_blob.get("months")
         ticker = json_blob.get("ticker")
 
-        df = stock_prices_predictor_tool(months, ticker)
+        df, llm_comment = stock_prices_predictor_tool(months, ticker)
 
 
         try:
             st.line_chart(df)
         except ValueError:
             print("Couldn't create DataFrame")
+
+        st.write(llm_comment)
 
 
     st.session_state.chat_history_stock_prediction.append(
