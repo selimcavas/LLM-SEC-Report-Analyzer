@@ -173,7 +173,7 @@ def text2sql_tool(text: str) -> str:
     if isRelated.strip() == "RELATED":
 
         few_shot = ""
-        with open("sql_agent_prompts.json", "r") as file:
+        with open("prompts/sql_agent_prompts.json", "r") as file:
             few_shot = json.load(file)
 
         # check if connection is created successfully
@@ -391,8 +391,6 @@ def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]) ->
     })
 
 
-
-
 def stock_prices_predictor_tool(months: str, ticker: str) -> str:
     # Connect to the SQLite database
     conn = sqlite3.connect('database.db')
@@ -444,45 +442,50 @@ def stock_prices_predictor_tool(months: str, ticker: str) -> str:
 
     # Preprocess the data for the LSTM model
     scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(df['price'].values.reshape(-1,1))
+    scaled_data = scaler.fit_transform(df['price'].values.reshape(-1, 1))
 
     n_input = 15
     forward_days = int(months) * 30  # Convert months to days
     n_features = 1
 
-    generator = TimeseriesGenerator(scaled_data, scaled_data, length=n_input, batch_size=20)     
+    generator = TimeseriesGenerator(
+        scaled_data, scaled_data, length=n_input, batch_size=20)
 
     # Define the LSTM model
     model = Sequential()
 
-    model.add(LSTM(128,activation = 'relu', input_shape= (n_input, n_features), return_sequences=True))
+    model.add(LSTM(128, activation='relu', input_shape=(
+        n_input, n_features), return_sequences=True))
     model.add(LSTM(128, activation='relu', return_sequences=True))
     model.add(LSTM(128, activation='relu', return_sequences=False))
     model.add(Dense(1))
     model.compile(optimizer='adam', loss='mse')
-    
-    model.fit(generator,epochs=30)
+
+    model.fit(generator, epochs=30)
 
     # Use the model to predict future stock prices
     pred_list = []
 
     current_batch = scaled_data[-n_input:].reshape((1, n_input, n_features))
-    
+
     print(f"🟢 current_batch: {current_batch}")
 
-    for i in range(forward_days):   
+    for i in range(forward_days):
         current_pred = model.predict(current_batch)[0]
         print(f"🟢 Current pred: {current_pred}")
         pred_list.append(current_pred)
-        
-        current_batch = np.append(current_batch[:,1:,:], [[current_pred]], axis=1)
+
+        current_batch = np.append(current_batch[:, 1:, :], [
+                                  [current_pred]], axis=1)
 
     # Inverse transform the predicted data
-    predicted_prices = scaler.inverse_transform(np.array(pred_list).reshape(-1,1))
+    predicted_prices = scaler.inverse_transform(
+        np.array(pred_list).reshape(-1, 1))
 
     # Generate predicted_dates
     last_date = datetime.strptime(end_date_str, '%Y-%m-%d')
-    predicted_dates = [(last_date + dt.timedelta(days=i+1)).strftime('%Y-%m-%d') for i in range(forward_days)]
+    predicted_dates = [(last_date + dt.timedelta(days=i+1)
+                        ).strftime('%Y-%m-%d') for i in range(forward_days)]
 
     # Append predicted prices and dates to rows
     for date, price in zip(predicted_dates, predicted_prices.flatten()):
@@ -490,7 +493,6 @@ def stock_prices_predictor_tool(months: str, ticker: str) -> str:
 
     # Close the connection
     conn.close()
-
 
     # Convert the fetched data and predicted data to a list of tuples
     actual_data = list(zip(df['date'].values, df['price'].values))
@@ -504,7 +506,8 @@ def stock_prices_predictor_tool(months: str, ticker: str) -> str:
     predicted_data_df = pd.DataFrame(predicted_data, columns=['date', 'price'])
 
     # Calculate the price change
-    price_change = (predicted_data_df['price'].values[-1] - actual_data_df['price'].values[-1]) / actual_data_df['price'].values[-1] * 100
+    price_change = (predicted_data_df['price'].values[-1] -
+                    actual_data_df['price'].values[-1]) / actual_data_df['price'].values[-1] * 100
 
     # Get the last actual and predicted dates and prices
     last_actual_date = actual_data_df['date'].values[-1]
@@ -512,7 +515,7 @@ def stock_prices_predictor_tool(months: str, ticker: str) -> str:
 
     last_actual_price = actual_data_df['price'].values[-1]
     last_predicted_price = predicted_data_df['price'].values[-1]
-    
+
     template = '''
             You are an expert financial analyzer, look at the following stock price change for the company with ticker: {ticker}
             The change given to you was gathered by using LSTM and the user asked to predict the next {months} months.
@@ -553,7 +556,7 @@ def stock_prices_predictor_tool(months: str, ticker: str) -> str:
         "last_predicted_price": last_predicted_price
 
     }).replace("$", "\$")
-    
+
     # Convert the output to a DataFrame
     output_df = pd.DataFrame(output, columns=['date', 'prices'])
 

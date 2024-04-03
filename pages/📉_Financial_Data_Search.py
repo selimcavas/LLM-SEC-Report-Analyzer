@@ -15,7 +15,7 @@ st.header('Financial Data Analyzer 📉', divider='green')
 if "chat_history_sql" not in st.session_state:
     st.session_state.chat_history_sql = [
         AIMessage(
-            content="This tool is designed to generate visual representations of a company's stock prices within a specified date range."),
+            content="This tool is designed to provide data from the balance sheet, income statement, and cash flow statements of companies in the NASDAQ100.'"),
     ]
 
 # conversation
