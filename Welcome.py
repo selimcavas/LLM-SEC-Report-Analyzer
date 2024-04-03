@@ -1,18 +1,17 @@
 import streamlit as st
 from data_collection.fetch_stockprices import fetch_and_store_stock_prices
 
-## checking last prices of stocks:
-print("Fetching stock prices...")
-fetch_and_store_stock_prices()
-print("Stock prices fetched!")
-
 st.set_page_config(
     page_title="LLM Supported Finance ChatBot",
     page_icon="🚀",
 )
 
-st.write("# Welcome to Our LLM Supported Finance ChatBot! 😎")
+# checking last prices of stocks:
+print("Fetching stock prices...")
+fetch_and_store_stock_prices()
+print("Stock prices fetched!")
 
+st.write("# Welcome to Our LLM Supported Finance ChatBot! 😎")
 
 st.sidebar.success("Please choose one of tools above to get started.")
 

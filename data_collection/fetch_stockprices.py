@@ -1,7 +1,10 @@
-import datetime
+from datetime import datetime, timedelta
 import sqlite3
 import yfinance as yf
+import streamlit as st
 
+
+@st.cache_resource
 def fetch_and_store_stock_prices():
     # Read the tickers from the file
     with open('tickers.txt', 'r') as f:
@@ -28,18 +31,37 @@ def fetch_and_store_stock_prices():
             SELECT MAX(date) FROM stock_prices WHERE ticker = ?
         ''', (ticker,))
         result = c.fetchone()
+
+        today = datetime.today().strftime('%Y-%m-%d')
+
         if result[0] is not None:
-            if datetime.datetime.strptime(result[0], '%Y-%m-%d') == datetime.datetime.now():
-                return # If the data is up to date, return
-            
-            start_date = datetime.datetime.strptime(result[0], '%Y-%m-%d') + datetime.timedelta(days=1)
-            
+            max_date = str(datetime.strptime(result[0], '%Y-%m-%d').date())
+
+            if max_date == today:
+                continue  # If the data is up to date, continue
+
+            start_date = datetime.strptime(
+                result[0], '%Y-%m-%d').date() + timedelta(days=1)
+            # print(f'🟢 start date: {start_date}')
+
         else:
-            start_date = datetime.datetime(2023, 3, 1)  # Default start date
+            print(f'entered else: {ticker}')
+            start_date = datetime(2023, 3, 1).date()  # Default start date
 
         # Fetch the data
         stock = yf.Ticker(ticker)
-        hist = stock.history(start=start_date.strftime('%Y-%m-%d'), end=datetime.datetime.now().strftime('%Y-%m-%d'))
+        hist = stock.history(
+            start=start_date, end=today)
+
+        # Check if hist is empty
+        if not hist.empty:
+            # Filter the DataFrame to remove any rows before the start date
+            hist = hist[hist.index.date >= start_date]
+        else:
+            print(f'No data found for {ticker} starting from {start_date}')
+            continue
+
+        # print(f'🟣 hist: {hist}')
 
         if not hist.empty:
             # Loop over the historical data and insert each price and date
@@ -47,12 +69,21 @@ def fetch_and_store_stock_prices():
                 price = row['Close']
                 date_str = date.strftime('%Y-%m-%d')
 
-                # Insert the data into the database
-                print(f'Inserting {ticker} {price} {date_str}')
+                # Check for duplicates
                 c.execute('''
-                    INSERT INTO stock_prices (ticker, price, date)
-                    VALUES (?, ?, ?)
-                ''', (ticker, price, date_str))
+                    SELECT * FROM stock_prices WHERE ticker = ? AND date = ?
+                ''', (ticker, date_str))
+                result = c.fetchone()
+
+                if result is None:
+                    # Insert the data into the database
+                    print(f'Inserting {ticker} {price} {date_str}')
+                    c.execute('''
+                        INSERT INTO stock_prices (ticker, price, date)
+                        VALUES (?, ?, ?)
+                    ''', (ticker, price, date_str))
+        else:
+            print(f'Database is up to date for ticker {ticker}!')
 
     # Commit the changes and close the connection
     conn.commit()
