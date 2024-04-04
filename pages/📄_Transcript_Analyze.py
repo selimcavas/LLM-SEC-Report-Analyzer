@@ -7,6 +7,7 @@ from langchain_community.chat_models.fireworks import ChatFireworks
 from langchain_core.output_parsers import JsonOutputParser
 import os
 from tool.tools import transcript_analyze_tool
+from prompts.prompt_templates import transcript_analyze_page
 
 load_dotenv()
 MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
@@ -42,38 +43,7 @@ if user_query is not None and user_query != "":
 
     with st.chat_message("AI"):
 
-        template = '''
-        You are an expert value extractor, look at the following question
-         
-          Question: {question} 
-        
-        Extract ticker symbol, year and quarter from the question. 
-        If the question doesn't pertain to the earnings call transcript, please inform the user that you can't answer it. 
-        Request the user to provide the ticker, year, and quarter information for the tool to function properly.
-
-            ticker: Given ticker in the prompt taken from user (e.g. AAPL for Apple Inc)
-
-            year: Given year in the prompt taken from user (e.g. 2023)
-
-            quarter: Given quarter in the prompt taken from user in capital letters (e.g Q2)
-
-        You should return a $JSON_BLOB with the extracted values such as: 
-
-        ```
-            {{
-                "quarter": "Q2",
-                "year": "2023",
-                "ticker": "AAPL"
-            }}
-        ```
-
-        IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
-        Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
-        Begin!
-
-        $JSON_BLOB:
-
-        '''
+        template = transcript_analyze_page
 
         prompt_template = ChatPromptTemplate.from_template(template)
 

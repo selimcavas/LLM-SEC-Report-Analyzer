@@ -11,6 +11,7 @@ from langchain_core.output_parsers import JsonOutputParser
 import os
 
 from tool.tools import stock_prices_predictor_tool
+from prompts.prompt_templates import stock_price_prediction_page
 
 load_dotenv()
 MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
@@ -46,34 +47,7 @@ if user_query is not None and user_query != "":
 
     with st.chat_message("AI"):
 
-        template = '''
-            You are an expert value extractor, look at the following question
-
-              Question: {question} 
-
-            Extract ticker and prediction months from the question. 
-
-                ticker: Ticker for stock price prediction. For example, AAPL for Apple Inc.
-
-                months: Prediction period for stock price, only a single integer value showing the number of months.
-                For example, "1", "6", etc.
-
-            You should return a $JSON_BLOB with the extracted values such as: 
-
-            ```
-                {{
-                    "ticker": "AAPL",
-                    "months": "1"
-                }}
-            ```
-
-            IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
-            Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
-            Begin!
-
-            $JSON_BLOB:
-
-            '''
+        template = stock_price_prediction_page
 
         prompt_template = ChatPromptTemplate.from_template(template)
 
@@ -100,14 +74,12 @@ if user_query is not None and user_query != "":
 
         df, llm_comment = stock_prices_predictor_tool(months, ticker)
 
-
         try:
             st.line_chart(df)
         except ValueError:
             print("Couldn't create DataFrame")
 
         st.write(llm_comment)
-
 
     st.session_state.chat_history_stock_prediction.append(
         AIMessage(content=df.to_json()))

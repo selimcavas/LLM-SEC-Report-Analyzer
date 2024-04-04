@@ -8,6 +8,7 @@ from langchain_community.chat_models.fireworks import ChatFireworks
 from langchain_core.output_parsers import JsonOutputParser
 import os
 from tool.tools import compare_cumulative_returns_tool
+from prompts.prompt_templates import cumulative_returns_page
 
 load_dotenv()
 MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
@@ -43,36 +44,7 @@ if user_query is not None and user_query != "":
 
     with st.chat_message("AI"):
 
-        template = '''
-        You are an expert value extractor, look at the following question
-         
-          Question: {question} 
-        
-        Extract start date, end date and ticker from the question. 
-        
-            start: Start date for stock price visualization. In the format YYYY-MM-DD.
-    
-            end: End date for stock price visualization. In the format YYYY-MM-DD.
-            
-            tickers: A list of tickers for stock price visualization. For example, AAPL, MSFT, AMZN
-
-        You should return a $JSON_BLOB with the extracted values such as: 
-
-        ```
-            {{
-                "start": "2022-01-01",
-                "end": "2022-01-01",
-                "tickers": ['AAPL', 'MSFT', 'AMZN']
-            }}
-        ```
-
-        IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
-        Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
-        Begin!
-
-        $JSON_BLOB:
-
-        '''
+        template = cumulative_returns_page
 
         prompt_template = ChatPromptTemplate.from_template(template)
 

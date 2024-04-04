@@ -39,6 +39,8 @@ from dateutil.relativedelta import relativedelta
 from datetime import datetime
 import datetime as dt
 
+from prompts.prompt_templates import transcript_analyze, sql_related, parse_sql, stock_price_chart, cumulative_returns_chart, stock_price_prediction_analysis
+
 load_dotenv()
 # Bu toollar bir şekilde birden fazla paramater ile çağrılmalı ki böylece args_schema kullanımı anlamlı hale gelsin.
 
@@ -85,30 +87,8 @@ def transcript_analyze_tool(quarter: str, year: str, ticker: str) -> str:
         fireworks_api_key=os.getenv("FIREWORKS_API_KEY"),
     )
 
-    analyze_prompt = '''
+    analyze_prompt = transcript_analyze
 
-        As an expert financial analyst, analyze the earning call transcript texts and provide a comprehensive financial status of the company, indicating its growth or decline in value.
-        Prepare a markdown report that includes the following sections, each with the relevant information and data to support your analysis:
-        
-        ### Parameters:
-
-        quarter: {quarter}
-        year: {year}
-        ticker: {ticker}
-
-        ### Final Report Desired Format:
-
-        - An executive summary of the company's financial status, including key financial metrics such as revenue, net income, and cash flow.
-        - A detailed analysis of the company's financial performance, broken down by business segment if applicable.
-        - A list of key points or themes from the earnings call, each with:
-            - A brief explanation of why the point is important.
-            - Relevant excerpts from the transcript, presented as bullet points, that illustrate or support the key point.
-            - Any relevant financial data or metrics associated with the key point.
-        - An analysis of the company's future outlook, based on statements made during the earnings call and the company's financial data.
-        - A conclusion that synthesizes the above information and highlights whether the company is on a growth trajectory or facing a decline. This should include any significant risks or opportunities identified during the analysis.
-        
-        Final Report:
-    '''
     prompt_template = ChatPromptTemplate.from_template(
         analyze_prompt)
 
@@ -142,23 +122,7 @@ def text2sql_tool(text: str) -> str:
 
     database = SQLDatabase.from_uri(database_uri="sqlite:///database.db")
 
-    template = '''
-        You are a financial data extractor. Analyze the following question.
-
-        Question: {question}
-
-        Table Info: {table_info}
-
-        If the question pertains to financial data that can be extracted from the table, 
-        return the word RELATED. If the question does not pertain to the table or the data in the table, 
-        return the word UNRELATED. Do not add any additional information or comments.
-        
-        ***Only return RELATED or UNRELATED.***
-
-        Begin!
-
-
-        '''
+    template = sql_related
 
     prompt_template = ChatPromptTemplate.from_template(template)
 
@@ -211,15 +175,7 @@ def text2sql_tool(text: str) -> str:
         # Execute the generated SQL query on the database
         query_result = database._execute(sql_query)
 
-        parse_template = ''' 
-        Using the following sql query result and user question to form a short answer. Parse financial values using the seperator and return the result in a human readable format.
-        
-        User Question: {user_question}
-
-        SQL Query Result: {query_result}
-
-        Final Answer:
-        '''
+        parse_template = parse_sql
 
         parse_temp = ChatPromptTemplate.from_template(parse_template)
 
@@ -260,26 +216,7 @@ def stock_prices_visualizer_tool(start: str, end: str, ticker: str) -> str:
     c.execute(sql_query, (start, end, ticker))
     rows = c.fetchall()
 
-    chart_prompt = '''
-
-        You are an experienced analyst that can generate stock price charts and provide insightful comments about them.
-        Generate an appropriate chart for the stock prices of {ticker} between {start} and {end}, and provide a brief comment about the price trends or significant events you notice in the data.
-        Use the {rows} and below output format for generating the $JSON_BLOB, do not round any values:
-       
-
-        $JSON_BLOB should look like this:
-        ```{{"line": 
-                {{"columns": ["A", "B", "C", ...], "data": [25, 24, 10, ...]}}, "comment": "Your comment here"}}
-            }}
-        ```
-
-        IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
-        Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
-        Begin!
-
-        $JSON_BLOB:
-
-    '''
+    chart_prompt = stock_price_chart
 
     prompt_template = ChatPromptTemplate.from_template(chart_prompt)
 
@@ -340,35 +277,8 @@ def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]) ->
     for i, output in enumerate(outputs):
         print(f"🟢 Output for {tickers[i]}: {output}")
 
-    chart_prompt = '''
-        As an experienced analyst, your task is to compare the cumulative returns of {tickers} between {start} and {end}. 
+    chart_prompt = cumulative_returns_chart
 
-        Use the output from the SQL queries to display the cumulative returns for each company.
-        SQL Output: {output}
-
-        You will need to generate a line graph with:
-            - The x-axis representing the dates.
-            - The y-axis representing the cumulative returns.
-            - A different line, for each company, with the height of each point representing the cumulative return on that date.
-
-        The graph should clearly show the comparative performance of the the companies over the given period. 
-
-        Please include a brief analysis of the graph, highlighting any notable trends or points of interest in the comment field.
-
-        The way you generate a graph is by creating a $JSON_BLOB.
-
-        $JSON_BLOB should be like this:
-        ```{{"line": 
-                {{"columns": ["Date", {tickers}], "data": [["2020-01-01", value1, value2, ...], ["2020-01-02", value1, value2 ...], ...]}}, "comment": "Your brief analysis and comparison here."}}
-            }}
-        ```
-
-        IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
-        Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
-        Begin!
-
-        $JSON_BLOB:
-    '''
     prompt_template = ChatPromptTemplate.from_template(chart_prompt)
 
     chat_model = ChatFireworks(
@@ -516,21 +426,7 @@ def stock_prices_predictor_tool(months: str, ticker: str) -> str:
     last_actual_price = actual_data_df['price'].values[-1]
     last_predicted_price = predicted_data_df['price'].values[-1]
 
-    template = '''
-            You are an expert financial analyzer, look at the following stock price change for the company with ticker: {ticker}
-            The change given to you was gathered by using LSTM and the user asked to predict the next {months} months.
-            
-            The stock price change is as follows: {price_change}
-            Last actual date: {last_actual_date}
-            Last predicted date: {last_predicted_date}
-            Last actual price: {last_actual_price}
-            Last predicted price: {last_predicted_price}
-
-            Form a brief maximum 2 sentence analysis according to the given data. Provide change with percent and also make sure all data is human readable.
-
-            Begin!
-
-    '''
+    template = stock_price_prediction_analysis
 
     prompt_template = ChatPromptTemplate.from_template(template)
 

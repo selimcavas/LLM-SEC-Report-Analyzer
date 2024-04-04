@@ -38,7 +38,7 @@ def fetch_and_store_stock_prices():
             max_date = str(datetime.strptime(result[0], '%Y-%m-%d').date())
 
             if max_date == today:
-                continue  # If the data is up to date, continue
+                break  # If the data is up to date, exit the loop
 
             start_date = datetime.strptime(
                 result[0], '%Y-%m-%d').date() + timedelta(days=1)
@@ -83,7 +83,8 @@ def fetch_and_store_stock_prices():
                         VALUES (?, ?, ?)
                     ''', (ticker, price, date_str))
         else:
-            print(f'Database is up to date for ticker {ticker}!')
+            print(f'Database is up to date!')
+            break
 
     # Commit the changes and close the connection
     conn.commit()
