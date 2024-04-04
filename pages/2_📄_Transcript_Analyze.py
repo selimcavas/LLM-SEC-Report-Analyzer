@@ -16,12 +16,11 @@ st.set_page_config(page_title='Earning Call Transcript Analyzer',
                    page_icon='📄')
 st.header('Earning Call Transcript Analyzer 📄', divider='green')
 
+st.markdown("This tool is designed to analyze the text of earnings call transcripts and extract key information that could indicate potential risks or opportunities for growth within a company. ")
+
 # session state
 if "chat_history_transcript" not in st.session_state:
-    st.session_state.chat_history_transcript = [
-        AIMessage(
-            content="This tool is designed to analyze the text of earnings call transcripts and extract key information that could indicate potential risks or opportunities for growth within a company. "),
-    ]
+    st.session_state.chat_history_transcript = []
 
 # conversation
 for message in st.session_state.chat_history_transcript:

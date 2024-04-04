@@ -20,12 +20,12 @@ st.set_page_config(page_title='Stock Price Predictor',
                    page_icon='🧠')
 st.header('Stock Price Predictor 🧠', divider='green')
 
+st.markdown(
+    "This tool is used to predict stock prices of a company in a given date range.")
+
 # session state
 if "chat_history_stock_prediction" not in st.session_state:
-    st.session_state.chat_history_stock_prediction = [
-        AIMessage(
-            content="This tool is used to predict stock prices of a company in a given date range."),
-    ]
+    st.session_state.chat_history_stock_prediction = []
 
 # conversation
 for message in st.session_state.chat_history_stock_prediction:

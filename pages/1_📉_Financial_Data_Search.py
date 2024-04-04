@@ -11,12 +11,12 @@ st.set_page_config(page_title='Financial Data Analyzer',
                    page_icon='📉')
 st.header('Financial Data Analyzer 📉', divider='green')
 
+
+st.markdown("This tool is designed to provide data from the balance sheet, income statement, and cash flow statements of companies in the NASDAQ100.'")
+
 # session state
 if "chat_history_sql" not in st.session_state:
-    st.session_state.chat_history_sql = [
-        AIMessage(
-            content="This tool is designed to provide data from the balance sheet, income statement, and cash flow statements of companies in the NASDAQ100.'"),
-    ]
+    st.session_state.chat_history_sql = []
 
 # conversation
 for message in st.session_state.chat_history_sql:

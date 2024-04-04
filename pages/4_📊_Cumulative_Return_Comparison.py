@@ -17,12 +17,11 @@ st.set_page_config(page_title='Cumulative Return Comparison',
                    page_icon='📊')
 st.header('Compare Cumulative Returns 📊', divider='green')
 
+st.markdown("This tool is used to compare the cumulative returns for the stock prices of multiple companies within a given date range.")
+
 # session state
 if "chat_history_cumulative" not in st.session_state:
-    st.session_state.chat_history_cumulative = [
-        AIMessage(
-            content="This tool is used to compare the cumulative returns for the stock prices of multiple companies within a given date range."),
-    ]
+    st.session_state.chat_history_cumulative = []
 
 # conversation
 for message in st.session_state.chat_history_cumulative:

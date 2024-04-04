@@ -17,12 +17,12 @@ st.set_page_config(page_title='Stock Price Analyzer & Visualizer',
                    page_icon='🤑')
 st.header('Stock Price Analyzer & Visualizer 🤑', divider='green')
 
+st.markdown(
+    "This tool is used to visualize stock prices of a company in a given date range.")
+
 # session state
 if "chat_history_stock_compare" not in st.session_state:
-    st.session_state.chat_history_stock_compare = [
-        AIMessage(
-            content="This tool is used to visualize stock prices of a company in a given date range."),
-    ]
+    st.session_state.chat_history_stock_compare = []
 
 # conversation
 for message in st.session_state.chat_history_stock_compare:

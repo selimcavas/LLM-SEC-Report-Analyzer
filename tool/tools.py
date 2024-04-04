@@ -173,7 +173,10 @@ def text2sql_tool(text: str) -> str:
         print(sql_query)
 
         # Execute the generated SQL query on the database
-        query_result = database._execute(sql_query)
+        try:
+            query_result = database._execute(sql_query)
+        except:
+            query_result = "Cannot find the data in the database. Please make sure you provide the correct quarter and year information."
 
         parse_template = parse_sql
 
