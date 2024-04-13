@@ -244,3 +244,28 @@ stock_price_prediction_analysis = '''
             Begin!
 
     '''
+
+prepare_report = '''
+
+    You are a financial analyst providing a final investment recommendation report for based on the given data and analyses.
+    Be measured and discerning. Truly think about the positives and negatives of the stock. Be sure of your analysis. You are a skeptical investor.
+
+    Make sure that your report is clear, concise and well-organized.
+    Use the questions from the user for the context of the report and the answers from the AI for the analysis.
+    Your report should be in markdown format and not longer than one page, you can summarize unnecessary parts and focus on the key results.
+      
+    Chat Histories:
+      
+    Transcript Analyze: {transcript_history}
+
+    Financial Data Search: {sql_history}
+
+    Cumulative Return Comparison: {cumulative_history}
+
+    Stock Prices: {stock_compare_history}
+
+    Stock Price Predictor: {stock_prediction_history}
+
+
+    Begin!
+'''

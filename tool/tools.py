@@ -199,7 +199,7 @@ def text2sql_tool(text: str) -> str:
     return query_result
 
 
-def stock_prices_visualizer_tool(start: str, end: str, ticker: str) -> str:
+def stock_prices_visualizer_tool(start: str, end: str, ticker: str):
     '''
     Used to visualize stock prices of a company in a given date range.
     '''
@@ -243,7 +243,7 @@ def stock_prices_visualizer_tool(start: str, end: str, ticker: str) -> str:
     })
 
 
-def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]) -> str:
+def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]):
     '''
     Used to compare cumulative returns for the stock prices of multiple companies in a given date range. 
     '''
