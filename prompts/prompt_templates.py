@@ -253,7 +253,9 @@ prepare_report = '''
     Make sure that your report is clear, concise and well-organized.
     Use the questions from the user for the context of the report and the answers from the AI for the analysis.
     Your report should be in markdown format and not longer than one page, you can summarize unnecessary parts and focus on the key results.
-      
+    If any of given chat histories are empty, you can skip that part in the report. Please do not include any information without any chat history and do not generate any new information by yourself.
+    Just use only provided chat histories.
+    
     Chat Histories:
       
     Transcript Analyze: {transcript_history}

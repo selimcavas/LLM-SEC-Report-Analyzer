@@ -12,7 +12,7 @@ st.set_page_config(page_title='Financial Data Analyzer',
 st.header('Financial Data Analyzer 📉', divider='green')
 
 
-st.markdown("This tool is designed to provide data from the balance sheet, income statement, and cash flow statements of companies in the NASDAQ100.'")
+st.markdown("This tool is designed to provide data from the balance sheet, income statement, and cash flow statements of companies in the NASDAQ100.")
 
 # session state
 if "chat_history_sql" not in st.session_state:
