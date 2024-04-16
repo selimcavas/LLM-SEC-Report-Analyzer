@@ -39,6 +39,8 @@ from dateutil.relativedelta import relativedelta
 from datetime import datetime
 import datetime as dt
 
+from sklearn.svm import SVR
+
 from prompts.prompt_templates import transcript_analyze, sql_related, parse_sql, stock_price_chart, cumulative_returns_chart, stock_price_prediction_analysis
 
 load_dotenv()
@@ -304,7 +306,7 @@ def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]):
     })
 
 
-def stock_prices_predictor_tool(months: str, ticker: str) -> str:
+def stock_prices_predictor_tool(months: str, ticker: str):
     # Connect to the SQLite database
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -353,13 +355,16 @@ def stock_prices_predictor_tool(months: str, ticker: str) -> str:
 
     print(f"🟢 Fetched data: {df}")
 
-    # Preprocess the data for the LSTM model
-    scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(df['price'].values.reshape(-1, 1))
-
     n_input = 15
     forward_days = int(months) * 30  # Convert months to days
     n_features = 1
+
+    # Svr prediction
+    predicted_svr, output_svr = svr_prediction(df, forward_days)
+
+    # Preprocess the data for the LSTM model
+    scaler = MinMaxScaler()
+    scaled_data = scaler.fit_transform(df['price'].values.reshape(-1, 1))
 
     generator = TimeseriesGenerator(
         scaled_data, scaled_data, length=n_input, batch_size=20)
@@ -417,17 +422,20 @@ def stock_prices_predictor_tool(months: str, ticker: str) -> str:
     # Convert the lists to DataFrames
     actual_data_df = pd.DataFrame(actual_data, columns=['date', 'price'])
     predicted_data_df = pd.DataFrame(predicted_data, columns=['date', 'price'])
+    svr_predicted_data_df = predicted_svr
 
     # Calculate the price change
-    price_change = (predicted_data_df['price'].values[-1] -
-                    actual_data_df['price'].values[-1]) / actual_data_df['price'].values[-1] * 100
+    price_change_lstm = (predicted_data_df['price'].values[-1] -
+                         actual_data_df['price'].values[-1]) / actual_data_df['price'].values[-1] * 100
+
+    price_change_svr = (svr_predicted_data_df['price'].values[-1] -
+                        actual_data_df['price'].values[-1]) / actual_data_df['price'].values[-1] * 100
 
     # Get the last actual and predicted dates and prices
     last_actual_date = actual_data_df['date'].values[-1]
-    last_predicted_date = predicted_data_df['date'].values[-1]
-
     last_actual_price = actual_data_df['price'].values[-1]
-    last_predicted_price = predicted_data_df['price'].values[-1]
+    last_predicted_price_lstm = predicted_data_df['price'].values[-1]
+    last_predicted_price_svr = svr_predicted_data_df['price'].values[-1]
 
     template = stock_price_prediction_analysis
 
@@ -448,21 +456,73 @@ def stock_prices_predictor_tool(months: str, ticker: str) -> str:
     llm_comment = trend_change_comment.invoke({
         "ticker": ticker,
         "months": months,
-        "price_change": price_change,
+        "price_change_lstm": price_change_lstm,
+        "price_change_svr": price_change_svr,
         "last_actual_date": last_actual_date,
-        "last_predicted_date": last_predicted_date,
         "last_actual_price": last_actual_price,
-        "last_predicted_price": last_predicted_price
+        "last_predicted_price_lstm": last_predicted_price_lstm,
+        "last_predicted_price_svr": last_predicted_price_svr,
 
     }).replace("$", "\$")
 
     # Convert the output to a DataFrame
-    output_df = pd.DataFrame(output, columns=['date', 'prices'])
+    output_lstm = pd.DataFrame(output, columns=['date', 'prices'])
 
     # Convert the 'date' column to datetime
-    output_df['date'] = pd.to_datetime(output_df['date'])
+    output_lstm['date'] = pd.to_datetime(output_lstm['date'])
 
     # Set the 'date' column as the index
-    output_df.set_index('date', inplace=True)
+    output_lstm.set_index('date', inplace=True)
 
-    return output_df, llm_comment
+    print(f'🟢 SVR Prediction: {output_svr}')
+    print(f'🟢 LSTM Prediction: {output_lstm}')
+
+    return actual_data_df, output_lstm, output_svr, llm_comment
+
+
+def svr_prediction(df, forward_days):
+
+    df = df.copy()
+
+    # Preprocess the data for the SVR model
+    df['date'] = pd.to_datetime(df['date'])
+    original_start_date = df['date'].min()
+    df['date'] = (df['date'] - original_start_date).dt.days
+
+    X = df['date'].values.reshape(-1, 1)
+    y = df['price'].values
+
+    # Use the MinMaxScaler to scale your data
+    scaler = MinMaxScaler()
+    y = scaler.fit_transform(y.reshape(-1, 1))
+
+    # Define the SVR model
+    model = SVR(kernel='rbf')
+
+    # Train the model
+    model.fit(X, y.ravel())
+
+    # Use the SVR model to predict future stock prices
+    future_dates = np.array([(df['date'].max() + i)
+                            for i in range(1, forward_days+1)]).reshape(-1, 1)
+    predicted_prices_scaled = model.predict(future_dates)
+    predicted_prices = scaler.inverse_transform(
+        predicted_prices_scaled.reshape(-1, 1))
+
+    # Convert the dates back to datetime format
+    future_dates = original_start_date + \
+        pd.to_timedelta(future_dates.flatten(), unit='D')
+
+    # Combine the actual and predicted data
+    actual_data = df.copy()
+    actual_data['date'] = original_start_date + \
+        pd.to_timedelta(actual_data['date'], unit='D')
+    predicted_data = pd.DataFrame(
+        {'date': future_dates, 'price': predicted_prices.flatten()})
+
+    output = pd.concat([actual_data, predicted_data])
+
+    output.set_index('date', inplace=True)
+    print(output)
+
+    return predicted_data, output

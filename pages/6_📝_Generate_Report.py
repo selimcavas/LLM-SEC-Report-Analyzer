@@ -1,4 +1,3 @@
-from curses import raw
 import streamlit as st
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -19,32 +18,32 @@ st.set_page_config(
 
 if "chat_history_transcript" not in st.session_state:
     transcript_history = []
-    #print("No chat history available.")
+    # print("No chat history available.")
 else:
     transcript_history = st.session_state.chat_history_transcript
-    
+
 
 if "chat_history_sql" not in st.session_state:
     sql_history = []
-    #print("No chat history SQL available.")
+    # print("No chat history SQL available.")
 else:
     sql_history = st.session_state.chat_history_sql
 
 if "chat_history_cumulative" not in st.session_state:
     cumulative_history = []
-    #print("No chat history Cumulative available.")
+    # print("No chat history Cumulative available.")
 else:
     cumulative_history = st.session_state.chat_history_cumulative
 
 if "chat_history_stock_compare" not in st.session_state:
     stock_compare_history = []
-    #print("No chat history Stock Compare available.")
+    # print("No chat history Stock Compare available.")
 else:
     stock_compare_history = st.session_state.chat_history_stock_compare
 
 if "chat_history_stock_prediction" not in st.session_state:
     stock_prediction_history = []
-    #print("No chat history Stock Prediction available.")
+    # print("No chat history Stock Prediction available.")
 else:
     stock_prediction_history = st.session_state.chat_history_stock_prediction
 
@@ -63,10 +62,8 @@ def format_chat_history(chat_history):
     return history
 
 
-
-
 if transcript_history or sql_history or cumulative_history or stock_compare_history or stock_prediction_history:
-   
+
     prompt_template = ChatPromptTemplate.from_template(prepare_report)
 
     chat_model = ChatFireworks(
@@ -78,7 +75,7 @@ if transcript_history or sql_history or cumulative_history or stock_compare_hist
         },
         fireworks_api_key=os.getenv("FIREWORKS_API_KEY")
     )
-    
+
     report = prompt_template | chat_model | StrOutputParser()
 
     llm_report = report.invoke({
@@ -98,17 +95,18 @@ if transcript_history or sql_history or cumulative_history or stock_compare_hist
     pdf.set_font('helvetica', size=12)
     pdf.write_html(html_text)
     pdf.output("Analysis_Report.pdf")
-    
-    st.success("PDF generation was successful! You can now download your detailed analysis report👇")
 
+    st.success(
+        "PDF generation was successful! You can now download your detailed analysis report👇")
 
-    with open("Analysis_Report.pdf", "rb") as file:
-        btn = st.download_button(
-            label="Download Analysis Report",
-            data=file,
-            file_name="Analysis_Report.pdf",
-            mime="application/pdf"
-        )
+    btn = st.download_button(
+        label="Download Analysis Report",
+        data=open("Analysis_Report.pdf", "rb").read(),
+        file_name="Analysis_Report.pdf",
+        mime="application/pdf"
+    )
+
+    if btn:
         os.remove("Analysis_Report.pdf")
 
 
