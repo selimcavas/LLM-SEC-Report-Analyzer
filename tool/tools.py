@@ -177,17 +177,16 @@ def text2sql_tool(text: str) -> str:
         # Execute the generated SQL query on the database
         try:
             query_result = database._execute(sql_query)
+            parse_template = parse_sql
+
+            parse_temp = ChatPromptTemplate.from_template(parse_template)
+
+            response = parse_temp | chat_model | StrOutputParser()
+
+            query_result = response.invoke(
+                {"user_question": text, "query_result": query_result})
         except:
             query_result = "Cannot find the data in the database. Please make sure you provide the correct quarter and year information."
-
-        parse_template = parse_sql
-
-        parse_temp = ChatPromptTemplate.from_template(parse_template)
-
-        response = parse_temp | chat_model | StrOutputParser()
-
-        query_result = response.invoke(
-            {"user_question": text, "query_result": query_result})
 
     elif isRelated.strip() == "UNRELATED":
         query_result = """Question is unrelated, please ask something related to the financial data available. Make sure you provide quarter and year information.

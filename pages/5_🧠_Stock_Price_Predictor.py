@@ -35,10 +35,13 @@ for message in st.session_state.chat_history_stock_prediction:
     elif isinstance(message, HumanMessage):
         with st.chat_message("Human"):
             st.write(message.content)
+    elif isinstance(message, pd.DataFrame):
+        st.line_chart(message)
 
 # user input
 user_query = st.chat_input("Type your message here...")
 if user_query is not None and user_query != "":
+
     st.session_state.chat_history_stock_prediction.append(
         HumanMessage(content=user_query))
 
@@ -79,6 +82,7 @@ if user_query is not None and user_query != "":
             combined_df = pd.concat([lstm_df, svr_df], axis=1)
             combined_df.columns = ['LSTM Prediction', 'SVR Prediction']
             st.line_chart(combined_df)
+            st.session_state.chat_history_stock_prediction.append(combined_df)
 
         except ValueError:
             print("Couldn't create DataFrame")
@@ -86,4 +90,4 @@ if user_query is not None and user_query != "":
         st.write(llm_comment)
 
     st.session_state.chat_history_stock_prediction.append(
-        AIMessage(content=combined_df.to_json()))
+        AIMessage(content=llm_comment))

@@ -91,8 +91,6 @@ stock_price_page = '''
         Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
         Begin!
 
-        $JSON_BLOB:
-
         '''
 
 stock_price_prediction_page = '''
@@ -107,8 +105,7 @@ stock_price_prediction_page = '''
             months: Prediction period for stock price, only a single integer value showing the number of months.
             For example, "1", "6", etc.
 
-        You should return a $JSON_BLOB with the extracted values such as: 
-
+        Return a $JSON_BLOB that looks like this:
         ```
             {{
                 "ticker": "AAPL",
@@ -119,8 +116,6 @@ stock_price_prediction_page = '''
         IMPORTANT: ONLY return the $JSON_BLOB and nothing else. Do not include any additional text, notes, or comments in your response. 
         Make sure all opening and closing curly braces matches in the $JSON_BLOB. Your response should begin and end with the $JSON_BLOB.
         Begin!
-
-        $JSON_BLOB:
 
         '''
 

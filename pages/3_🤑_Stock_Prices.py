@@ -32,6 +32,8 @@ for message in st.session_state.chat_history_stock_compare:
     elif isinstance(message, HumanMessage):
         with st.chat_message("Human"):
             st.write(message.content)
+    elif isinstance(message, pd.DataFrame):
+        st.line_chart(message)
 
 # user input
 user_query = st.chat_input("Type your message here...")
@@ -60,29 +62,32 @@ if user_query is not None and user_query != "":
 
         response = prompt_template | chat_model | JsonOutputParser()
 
-        json_blob = response.invoke({
-            "question": user_query
-        })
-
-        start_date = json_blob.get("start")
-        end_date = json_blob.get("end")
-        ticker = json_blob.get("ticker")
-
-        response = stock_prices_visualizer_tool(
-            start_date, end_date, ticker)
-
-        data = response["line"]
-
         try:
+            json_blob = response.invoke({
+                "question": user_query
+            })
+
+            start_date = json_blob.get("start")
+            end_date = json_blob.get("end")
+            ticker = json_blob.get("ticker")
+
+            response = stock_prices_visualizer_tool(
+                start_date, end_date, ticker)
+
+            data = response["line"]
+
             df_data = {col: [x[i] for x in data['data']]
                        for i, col in enumerate(data['columns'])}
             df = pd.DataFrame(df_data)
             df.set_index("Date", inplace=True)
             st.line_chart(df)
-        except ValueError:
-            print(f"Couldn't create DataFrame from data: {data}")
+            st.session_state.chat_history_stock_compare.append(df)
+            ai_response = response["comment"].replace("$", "\$")
 
-        st.write(response["comment"].replace("$", "\$"))
+        except ValueError:
+            ai_response = "Sorry I couldn't create the chart. Please make sure you provide the correct date range and ticker."
+
+        st.write(ai_response)
 
     st.session_state.chat_history_stock_compare.append(
-        AIMessage(content=response["comment"].replace("$", "\$")))
+        AIMessage(content=ai_response))

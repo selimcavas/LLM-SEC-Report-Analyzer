@@ -57,21 +57,24 @@ if user_query is not None and user_query != "":
         )
 
         response = prompt_template | chat_model | JsonOutputParser()
+        try:
+            json_blob = response.invoke({
+                "question": user_query
+            })
 
-        json_blob = response.invoke({
-            "question": user_query
-        })
+            print(json_blob)
 
-        print(json_blob)
+            ticker = json_blob["ticker"]
+            year = json_blob["year"]
+            quarter = json_blob["quarter"]
 
-        ticker = json_blob["ticker"]
-        year = json_blob["year"]
-        quarter = json_blob["quarter"]
+            response = transcript_analyze_tool(
+                quarter, year, ticker)
+            ai_response = response["result"].replace("$", "\$")
+        except Exception as e:
+            ai_response = f"Failed to find the earning call transcript. Please try again."
 
-        response = transcript_analyze_tool(
-            quarter, year, ticker)
-
-        st.write(response["result"].replace("$", "\$"))
+        st.write(ai_response)
 
     st.session_state.chat_history_transcript.append(
-        AIMessage(content=response["result"].replace("$", "\$")))
+        AIMessage(content=ai_response))
