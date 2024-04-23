@@ -19,6 +19,7 @@ def fetch_and_store_stock_prices():
         CREATE TABLE IF NOT EXISTS stock_prices (
             ticker TEXT,
             price REAL,
+            volume REAL,
             date TEXT,
             PRIMARY KEY (ticker, date)
         )
@@ -67,6 +68,7 @@ def fetch_and_store_stock_prices():
             # Loop over the historical data and insert each price and date
             for date, row in hist.iterrows():
                 price = row['Close']
+                volume = row['Volume']
                 date_str = date.strftime('%Y-%m-%d')
 
                 # Check for duplicates
@@ -79,9 +81,9 @@ def fetch_and_store_stock_prices():
                     # Insert the data into the database
                     print(f'Inserting {ticker} {price} {date_str}')
                     c.execute('''
-                        INSERT INTO stock_prices (ticker, price, date)
-                        VALUES (?, ?, ?)
-                    ''', (ticker, price, date_str))
+                        INSERT INTO stock_prices (ticker, price, volume, date)
+                        VALUES (?, ?, ?, ?)
+                    ''', (ticker, price, volume, date_str))
         else:
             print(f'Database is up to date!')
             break

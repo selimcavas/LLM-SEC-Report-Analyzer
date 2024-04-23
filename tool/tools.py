@@ -355,16 +355,20 @@ def stock_prices_predictor_tool(months: str, ticker: str):
     print(f"🟢 Fetched data: {df}")
 
     n_input = 15
-    forward_days = int(months) * 30  # Convert months to days
-    n_features = 1
+    # Convert months to days # sayısı 1 2 güne indirilecek 1 haftayı geçmeyecek
+    forward_days = int(months) * 30
+    n_features = 1  # burası column sayısı kadar olcak
 
     # Svr prediction
     predicted_svr, output_svr = svr_prediction(df, forward_days)
 
     # Preprocess the data for the LSTM model
     scaler = MinMaxScaler()
+
+    # [[sentiment_score(price diff e göre -1 0 +1), price_diff, volume]] training kısmı
     scaled_data = scaler.fit_transform(df['price'].values.reshape(-1, 1))
 
+    # train test split yapılacak
     generator = TimeseriesGenerator(
         scaled_data, scaled_data, length=n_input, batch_size=20)
 
@@ -376,7 +380,7 @@ def stock_prices_predictor_tool(months: str, ticker: str):
     model.add(LSTM(128, activation='relu', return_sequences=True))
     model.add(LSTM(128, activation='relu', return_sequences=False))
     model.add(Dense(1))
-    model.compile(optimizer='adam', loss='mse')
+    model.compile(optimizer='adam', loss='mse')  # loss rmse ye çevrilecek
 
     model.fit(generator, epochs=30)
 

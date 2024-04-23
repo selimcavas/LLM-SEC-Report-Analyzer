@@ -102,6 +102,7 @@ def update_stock_prices():
         CREATE TABLE IF NOT EXISTS stock_prices (
             ticker TEXT,
             price REAL,
+            volume REAL,
             date TEXT,
             PRIMARY KEY (ticker, date)
         )
@@ -118,7 +119,7 @@ def update_stock_prices():
 
         # If there's no latest date, start from 30 days ago
         if latest_date is None:
-            start_date = datetime.now() - timedelta(days=30)
+            start_date = datetime.now() - timedelta(days=2*365)
         else:
             # Start from the day after the latest date
             start_date = datetime.strptime(latest_date, '%Y-%m-%d') + timedelta(days=1)
@@ -133,29 +134,34 @@ def update_stock_prices():
             # Loop over the historical data and insert each price and date
             for date, row in hist.iterrows():
                 price = row['Close']
+                volume = row['Volume']
                 date_str = date.strftime('%Y-%m-%d')
 
                 # Insert the data into the database
                 c.execute('''
-                    INSERT OR IGNORE INTO stock_prices (ticker, price, date)
-                    VALUES (?, ?, ?)
-                ''', (ticker, price, date_str))
+                    INSERT OR IGNORE INTO stock_prices (ticker, price, volume, date)
+                    VALUES (?, ?, ?, ?)
+                ''', (ticker, price, volume, date_str))
 
     # Commit the changes and close the connection
     conn.commit()
     conn.close()
 
 
-
-
 if __name__ == '__main__':
-    tickers = get_tickers()
-    write_tickers()
-    for ticker in tickers:
-        try:
-            get_csvs(ticker)
-        except Exception as e:
-            print(e)
-            print_tb(e.__traceback__)
-            print(ticker)
-            continue
+
+    # Connect to the SQLite database
+    conn = sqlite3.connect('database.db')
+
+    # Get a cursor
+    c = conn.cursor()
+
+    # Delete the table
+    c.execute('DROP TABLE IF EXISTS stock_prices')
+
+
+    # Commit the changes and close the connection
+    conn.commit()
+    conn.close()
+
+    update_stock_prices()
