@@ -104,7 +104,8 @@ def train_and_save_model(ticker):
         win_length, n_features), return_sequences=False))
     model.add(Dense(1))
 
-    model.compile(optimizer='adam', loss='mse', metrics=['mean_absolute_error'])
+    model.compile(optimizer='adam', loss='mse',
+                  metrics=['mean_absolute_error'])
 
     model.fit(train_generator, epochs=30,
               validation_data=test_generator, shuffle=False)
@@ -205,8 +206,8 @@ def stock_prices_predictor_tool(days, ticker):
     print(f"🟢 predictions: {price_preds}")
 
 
-#stock_prices_predictor_tool(3, 'AMZN')
-with open('tickers_test.txt', 'r') as f:
+# stock_prices_predictor_tool(3, 'AMZN')
+with open('tickers.txt', 'r') as f:
     tickers = f.read().splitlines()
 
 for ticker in tickers:

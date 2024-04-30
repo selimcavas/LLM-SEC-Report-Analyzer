@@ -30,9 +30,7 @@ from typing import List
 
 from keras._tf_keras.keras.preprocessing.sequence import TimeseriesGenerator
 
-from keras.models import Sequential
-from keras.layers import LSTM
-from keras.layers import Dense
+from tensorflow.keras.models import load_model
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -305,7 +303,7 @@ def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]):
     })
 
 
-def stock_prices_predictor_tool(months: str, ticker: str):
+def stock_prices_predictor_tool(days, ticker):
     # Connect to the SQLite database
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -326,7 +324,7 @@ def stock_prices_predictor_tool(months: str, ticker: str):
 
     # Convert the end_date to a datetime object
     end_date = datetime.strptime(end_date, '%Y-%m-%d')
-    start_date = end_date - relativedelta(years=1)
+    start_date = end_date - relativedelta(years=2)
 
     start_date_str = start_date.strftime('%Y-%m-%d')
     end_date_str = end_date.strftime('%Y-%m-%d')
@@ -335,7 +333,7 @@ def stock_prices_predictor_tool(months: str, ticker: str):
 
     # Prepare the SQL query
     sql_query = '''
-        SELECT date, price
+        SELECT date, price, volume
         FROM stock_prices
         WHERE date BETWEEN ? AND ? AND ticker = ?
         ORDER BY date
@@ -350,63 +348,58 @@ def stock_prices_predictor_tool(months: str, ticker: str):
         return f'No data for {ticker} between {start_date_str} and {end_date_str}'
 
     # Convert the data to a pandas DataFrame
-    df = pd.DataFrame(rows, columns=['date', 'price'])
+    df = pd.DataFrame(rows, columns=['date', 'price', 'volume'])
 
-    print(f"🟢 Fetched data: {df}")
+    # Create a copy of the original DataFrame
+    df_copy = df.copy()
 
-    n_input = 15
-    # Convert months to days # sayısı 1 2 güne indirilecek 1 haftayı geçmeyecek
-    forward_days = int(months) * 30
-    n_features = 1  # burası column sayısı kadar olcak
+    df['price_diff'] = df['price'].diff()
 
-    # Svr prediction
-    predicted_svr, output_svr = svr_prediction(df, forward_days)
+    df.drop(0, inplace=True)
+    df.drop('date', axis=1, inplace=True)
 
-    # Preprocess the data for the LSTM model
     scaler = MinMaxScaler()
+    scaled_data = scaler.fit_transform(df)
 
-    # [[sentiment_score(price diff e göre -1 0 +1), price_diff, volume]] training kısmı
-    scaled_data = scaler.fit_transform(df['price'].values.reshape(-1, 1))
+    features = scaled_data
+    target = scaled_data[:, 0]
 
-    # train test split yapılacak
-    generator = TimeseriesGenerator(
-        scaled_data, scaled_data, length=n_input, batch_size=20)
+    win_length = 5  # window length 5 days
+    batch_size = 15  # train
+    n_features = 3  # number of features
 
-    # Define the LSTM model
-    model = Sequential()
-
-    model.add(LSTM(128, activation='relu', input_shape=(
-        n_input, n_features), return_sequences=True))
-    model.add(LSTM(128, activation='relu', return_sequences=True))
-    model.add(LSTM(128, activation='relu', return_sequences=False))
-    model.add(Dense(1))
-    model.compile(optimizer='adam', loss='mse')  # loss rmse ye çevrilecek
-
-    model.fit(generator, epochs=30)
-
-    # Use the model to predict future stock prices
     pred_list = []
+    batch = scaled_data[-win_length:].reshape((1, win_length, n_features))
+    print(batch)
 
-    current_batch = scaled_data[-n_input:].reshape((1, n_input, n_features))
+    model = load_model(f'models/{ticker}.keras')
 
-    print(f"🟢 current_batch: {current_batch}")
+    for i in range(days):  # assuming days is the number of days into the future you want to predict
+        current_pred = model.predict(batch)[0]
+        print(f"🟢 current pred: {current_pred}")
+        print(f"🟢 current pred price: {current_pred[0]}")
+        # Append only the first element of current_pred
+        pred_list.append(current_pred[0])
+        current_pred = np.repeat(
+            current_pred, n_features).reshape((1, 1, n_features))
+        print(f"🟢 batch: {batch[:, 1:, :]}")
+        print(f"🟢 current pred reshaped: {current_pred}")
+        batch = np.append(batch[:, 1:, :], current_pred, axis=1)
 
-    for i in range(forward_days):
-        current_pred = model.predict(current_batch)[0]
-        print(f"🟢 Current pred: {current_pred}")
-        pred_list.append(current_pred)
-
-        current_batch = np.append(current_batch[:, 1:, :], [
-                                  [current_pred]], axis=1)
-
+    # Convert pred_list to a numpy array and repeat each prediction 3 times
+    pred_array = np.repeat(np.array(pred_list), 3).reshape(-1, 3)
     # Inverse transform the predicted data
-    predicted_prices = scaler.inverse_transform(
-        np.array(pred_list).reshape(-1, 1))
+    inverse = scaler.inverse_transform(pred_array)
+    # Take the first column of inverse as the predictions
+    predicted_prices = inverse[:, 0]
+    print(f"🟢 predictions: {predicted_prices}")
+
+    ############################################################################################################
 
     # Generate predicted_dates
     last_date = datetime.strptime(end_date_str, '%Y-%m-%d')
     predicted_dates = [(last_date + dt.timedelta(days=i+1)
-                        ).strftime('%Y-%m-%d') for i in range(forward_days)]
+                        ).strftime('%Y-%m-%d') for i in range(days)]
 
     # Append predicted prices and dates to rows
     for date, price in zip(predicted_dates, predicted_prices.flatten()):
@@ -416,7 +409,9 @@ def stock_prices_predictor_tool(months: str, ticker: str):
     conn.close()
 
     # Convert the fetched data and predicted data to a list of tuples
-    actual_data = list(zip(df['date'].values, df['price'].values))
+    actual_data_full = list(
+        zip(df_copy['date'].values, df_copy['price'].values))
+    actual_data = actual_data_full[-30:]
     predicted_data = list(zip(predicted_dates, predicted_prices.flatten()))
 
     # Combine the actual and predicted data
@@ -425,20 +420,17 @@ def stock_prices_predictor_tool(months: str, ticker: str):
     # Convert the lists to DataFrames
     actual_data_df = pd.DataFrame(actual_data, columns=['date', 'price'])
     predicted_data_df = pd.DataFrame(predicted_data, columns=['date', 'price'])
-    svr_predicted_data_df = predicted_svr
 
     # Calculate the price change
-    price_change_lstm = (predicted_data_df['price'].values[-1] -
-                         actual_data_df['price'].values[-1]) / actual_data_df['price'].values[-1] * 100
-
-    price_change_svr = (svr_predicted_data_df['price'].values[-1] -
-                        actual_data_df['price'].values[-1]) / actual_data_df['price'].values[-1] * 100
+    price_change = (predicted_data_df['price'].values[-1] -
+                    actual_data_df['price'].values[-1]) / actual_data_df['price'].values[-1] * 100
 
     # Get the last actual and predicted dates and prices
     last_actual_date = actual_data_df['date'].values[-1]
+    last_predicted_date = predicted_data_df['date'].values[-1]
+
     last_actual_price = actual_data_df['price'].values[-1]
-    last_predicted_price_lstm = predicted_data_df['price'].values[-1]
-    last_predicted_price_svr = svr_predicted_data_df['price'].values[-1]
+    last_predicted_price = predicted_data_df['price'].values[-1]
 
     template = stock_price_prediction_analysis
 
@@ -458,29 +450,25 @@ def stock_prices_predictor_tool(months: str, ticker: str):
 
     llm_comment = trend_change_comment.invoke({
         "ticker": ticker,
-        "months": months,
-        "price_change_lstm": price_change_lstm,
-        "price_change_svr": price_change_svr,
+        "days": days,
+        "price_change": price_change,
         "last_actual_date": last_actual_date,
+        "last_predicted_date": last_predicted_date,
         "last_actual_price": last_actual_price,
-        "last_predicted_price_lstm": last_predicted_price_lstm,
-        "last_predicted_price_svr": last_predicted_price_svr,
+        "last_predicted_price": last_predicted_price
 
     }).replace("$", "\$")
 
     # Convert the output to a DataFrame
-    output_lstm = pd.DataFrame(output, columns=['date', 'prices'])
+    output_df = pd.DataFrame(output, columns=['date', 'prices'])
 
     # Convert the 'date' column to datetime
-    output_lstm['date'] = pd.to_datetime(output_lstm['date'])
+    output_df['date'] = pd.to_datetime(output_df['date'])
 
     # Set the 'date' column as the index
-    output_lstm.set_index('date', inplace=True)
+    output_df.set_index('date', inplace=True)
 
-    print(f'🟢 SVR Prediction: {output_svr}')
-    print(f'🟢 LSTM Prediction: {output_lstm}')
-
-    return actual_data_df, output_lstm, output_svr, llm_comment
+    return output_df, llm_comment
 
 
 def svr_prediction(df, forward_days):

@@ -72,18 +72,15 @@ if user_query is not None and user_query != "":
 
         print(json_blob)
 
-        months = json_blob.get("months")
+        days = int(json_blob.get("days"))
         ticker = json_blob.get("ticker")
 
-        actual_df, lstm_df, svr_df, llm_comment = stock_prices_predictor_tool(
-            months, ticker)
+        df, llm_comment = stock_prices_predictor_tool(
+            days, ticker)
 
         try:
-            combined_df = pd.concat([lstm_df, svr_df], axis=1)
-            combined_df.columns = ['LSTM Prediction', 'SVR Prediction']
-            st.line_chart(combined_df)
-            st.session_state.chat_history_stock_prediction.append(combined_df)
-
+            st.line_chart(df)
+            st.session_state.chat_history_stock_prediction.append(df)
         except ValueError:
             print("Couldn't create DataFrame")
 

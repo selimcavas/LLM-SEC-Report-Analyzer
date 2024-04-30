@@ -98,18 +98,18 @@ stock_price_prediction_page = '''
 
             Question: {question} 
 
-        Extract ticker and prediction months from the question. 
+        Extract ticker and prediction days from the question. 
 
             ticker: Ticker for stock price prediction. For example, AAPL for Apple Inc.
 
-            months: Prediction period for stock price, only a single integer value showing the number of months.
-            For example, "1", "6", etc.
+            days: Prediction period for stock price, only a single integer value showing the number of days.
+            For example, "1", "3", etc.
 
         Return a $JSON_BLOB that looks like this:
         ```
             {{
                 "ticker": "AAPL",
-                "months": "1"
+                "days": "3"
             }}
         ```
 
@@ -226,16 +226,15 @@ cumulative_returns_chart = '''
 
 stock_price_prediction_analysis = '''
             You are an expert financial analyzer, look at the following stock price change for the company with ticker: {ticker}
-            The change given to you was gathered by using LSTM and SVR models and the user asked to predict the next {months} months.
+            The change given to you was gathered by using LSTM and the user asked to predict the next {days} days.
             
-            The stock price change according to LSTM: {price_change_lstm}
-            The stock price change according to SVR: {price_change_svr}
+            The stock price change is as follows: {price_change}
             Last actual date: {last_actual_date}
+            Last predicted date: {last_predicted_date}
             Last actual price: {last_actual_price}
-            Last predicted price using LSTM: {last_predicted_price_lstm}
-            Last predicted price using SVR: {last_predicted_price_svr}
+            Last predicted price: {last_predicted_price}
 
-            Form a brief maximum 2 sentence analysis and compare model predictions according to the given data. Provide change with percent and also make sure all data is human readable.
+            Form a brief maximum 2 sentence analysis according to the given data. Provide change with percent and also make sure all data is human readable.
 
             Begin!
 
