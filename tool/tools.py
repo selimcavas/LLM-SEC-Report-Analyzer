@@ -303,7 +303,7 @@ def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]):
     })
 
 
-def stock_prices_predictor_tool(days, ticker):
+def stock_prices_predictor_tool(days, ticker, sentiment_score):
     # Connect to the SQLite database
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -361,11 +361,7 @@ def stock_prices_predictor_tool(days, ticker):
     scaler = MinMaxScaler()
     scaled_data = scaler.fit_transform(df)
 
-    features = scaled_data
-    target = scaled_data[:, 0]
-
     win_length = 5  # window length 5 days
-    batch_size = 15  # train
     n_features = 3  # number of features
 
     pred_list = []
@@ -393,6 +389,42 @@ def stock_prices_predictor_tool(days, ticker):
     # Take the first column of inverse as the predictions
     predicted_prices = inverse[:, 0]
     print(f"🟢 predictions: {predicted_prices}")
+
+    # Create predictions based on the sentiment score
+
+    perceptron_model = load_model(f'models/perceptron.keras')
+
+    # Initialize an empty list to store the new predictions
+    new_predictions = []
+
+    # Initialize the first predicted price
+    predicted_price = predicted_prices[0]
+
+    # Loop over each prediction in the predicted_prices array
+    for i in range(len(predicted_prices)):
+        # Prepare the input data for the perceptron model
+        X = np.array([[predicted_price, sentiment_score]])
+
+        # Use the perceptron model to make a new prediction
+        perceptron_pred = perceptron_model.predict(X)
+        print(f"🟣 perceptron prediction: {perceptron_pred[0][0]}")
+        print(f"🟣 lstm prediction: {predicted_prices[i]}")
+
+        hybrid_pred = perceptron_pred[0][0] * 0.8 + predicted_prices[i] * 0.2
+        print(f"🔵 hybrid prediction: {hybrid_pred}")
+
+        # Update the predicted_price with the hybrid prediction for the next iteration
+        predicted_price = hybrid_pred
+
+        # Append the new prediction to the new_predictions list
+        new_predictions.append(predicted_price)
+
+    # Convert the new_predictions list to a numpy array
+    new_predictions = np.array(new_predictions)
+
+    print(f"🟠 New predictions: {new_predictions}")
+
+    predicted_prices = new_predictions
 
     ############################################################################################################
 
