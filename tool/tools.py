@@ -41,6 +41,10 @@ from sklearn.svm import SVR
 
 from prompts.prompt_templates import transcript_analyze, sql_related, parse_sql, stock_price_chart, cumulative_returns_chart, stock_price_prediction_analysis
 
+# for sentiment analysis and new approachs evaluations
+from finbert import calculate_sentiment
+from sklearn.metrics import mean_absolute_error
+
 load_dotenv()
 # Bu toollar bir şekilde birden fazla paramater ile çağrılmalı ki böylece args_schema kullanımı anlamlı hale gelsin.
 
@@ -303,7 +307,7 @@ def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]):
     })
 
 
-def stock_prices_predictor_tool(days, ticker, sentiment_score):
+def stock_prices_predictor_tool(days, ticker):
     # Connect to the SQLite database
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -394,6 +398,19 @@ def stock_prices_predictor_tool(days, ticker, sentiment_score):
 
     perceptron_model = load_model(f'models/perceptron.keras')
 
+
+    ################## before new predictions, we need to define avg sentiment score ############################
+
+    ## we ll use them when all trancript speech is updated
+    # now = datetime.now()
+    # year = str(now.year)
+    # quarter = "Q" + str((now.month - 1) // 3 + 1)
+
+    # Use the current year and quarter for transcript analysis
+    rag_output = transcript_analyze("Q1", "2023", ticker)
+    avg_sentiment_score = calculate_sentiment(rag_output)
+
+
     # Initialize an empty list to store the new predictions
     new_predictions = []
 
@@ -403,10 +420,11 @@ def stock_prices_predictor_tool(days, ticker, sentiment_score):
     # Loop over each prediction in the predicted_prices array
     for i in range(len(predicted_prices)):
         # Prepare the input data for the perceptron model
-        X = np.array([[predicted_price, sentiment_score]])
+        X = np.array([[predicted_price, avg_sentiment_score]])
 
         # Use the perceptron model to make a new prediction
         perceptron_pred = perceptron_model.predict(X)
+
         print(f"🟣 perceptron prediction: {perceptron_pred[0][0]}")
         print(f"🟣 lstm prediction: {predicted_prices[i]}")
 
