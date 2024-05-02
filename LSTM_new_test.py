@@ -115,6 +115,9 @@ def train_and_save_model(ticker):
     print('Mean Absolute Error: ', results[1])
 
     model.save(f'models/{ticker}.keras')
+    loss = results[0]
+    mae = results[1]
+    return loss, mae
 
 
 def stock_prices_predictor_tool(days, ticker):
@@ -327,11 +330,20 @@ def stock_prices_predictor_tool_with_sentiment(days, ticker, sentiment_score):
 
     print(f"🟠 New predictions: {new_predictions}")
 
+if __name__ == "__main__":
+    #stock_prices_predictor_tool_with_sentiment(3, 'AAPL', 0.32)
+    # stock_prices_predictor_tool(3, 'AMZN')
+    with open('tickers.txt', 'r') as f:
+        tickers = f.read().splitlines()
+    
+    loss_avg = []
+    mae_avg = []
 
-stock_prices_predictor_tool_with_sentiment(3, 'AAPL', 0.32)
-# stock_prices_predictor_tool(3, 'AMZN')
-# with open('tickers.txt', 'r') as f:
-#     tickers = f.read().splitlines()
+    for ticker in tickers:
+        loss, mae = train_and_save_model(ticker)
+        loss_avg.append(loss)
+        mae_avg.append(mae)
+    print(f"🟢 Average loss: {sum(loss_avg) / len(loss_avg)}")
+    print(f"🟢 Average mae: {sum(mae_avg) / len(mae_avg)}")
+    
 
-# for ticker in tickers:
-#     train_and_save_model(ticker)
