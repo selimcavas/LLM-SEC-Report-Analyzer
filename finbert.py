@@ -17,10 +17,11 @@ def calculate_sentiment(text):
 
     # Calculate the average sentiment
     avg_sentiment = sum(sentiment_scores) / len(sentiment_scores)
+    print(f"🟠 AVG Sentiment Score: {avg_sentiment}")
     return avg_sentiment
 
 if __name__ == "__main__":
-    
+
     report_text = """For the second quarter of 2022, Apple Inc. (AAPL) reported a revenue of $97.27 billion, representing a 9% increase compared to Q2 2021. The net income stood at $25.0 billion, up by 6% YoY. The company's cash flow from operating activities was $28.06 billion, a 10% increase compared to Q2 2021.
     Detailed Analysis of Financial Performance
 

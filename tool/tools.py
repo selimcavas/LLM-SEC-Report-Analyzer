@@ -407,9 +407,9 @@ def stock_prices_predictor_tool(days, ticker):
     # quarter = "Q" + str((now.month - 1) // 3 + 1)
 
     # Use the current year and quarter for transcript analysis
-    rag_output = transcript_analyze("Q1", "2023", ticker)
-    avg_sentiment_score = calculate_sentiment(rag_output)
-
+    rag_output = transcript_analyze_tool("Q1", "2023", ticker)
+    avg_sentiment_score = calculate_sentiment(rag_output["result"].replace("$", "\$"))
+    
 
     # Initialize an empty list to store the new predictions
     new_predictions = []
@@ -505,7 +505,8 @@ def stock_prices_predictor_tool(days, ticker):
         "last_actual_date": last_actual_date,
         "last_predicted_date": last_predicted_date,
         "last_actual_price": last_actual_price,
-        "last_predicted_price": last_predicted_price
+        "last_predicted_price": last_predicted_price,
+        "sentiment_score":avg_sentiment_score
 
     }).replace("$", "\$")
 
