@@ -6,6 +6,7 @@ from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from sympy import li
 from webdriver_manager.firefox import GeckoDriverManager
 from bs4 import BeautifulSoup
 import os
@@ -42,7 +43,6 @@ def extract_info_from_links():
 
 
 def extract_earning_call_links():
-
     driver = webdriver.Firefox(
         service=FirefoxService(GeckoDriverManager().install()))
 
@@ -54,8 +54,8 @@ def extract_earning_call_links():
     base_url = "https://www.fool.com/quote/nasdaq/"
 
     # Base XPath
-    base_xpath_earning_call_a = "/html/body/div[8]/div[3]/div[1]/section[2]/div/div[1]/div[2]/div[8]/div/div/a["
-    base_xpath_earning_call_b_plan = "/html/body/div[8]/div[3]/div[1]/section[2]/div/div[1]/div[2]/div[7]/div/div/a["
+    base_xpath_earning_call_a = "/html/body/div[9]/div[3]/div[1]/section[2]/div/div[1]/div[2]/div[8]/div/div/a["
+    base_xpath_earning_call_b_plan = "/html/body/div[9]/div[3]/div[1]/section[2]/div/div[1]/div[2]/div[7]/div/div/a["
 
     # List to store the URLs
     urls = []
@@ -67,7 +67,8 @@ def extract_earning_call_links():
 
     with open('earning_call_links.txt', 'w') as file:
         # Print the URLs
-        for url in urls:
+        for index, url in enumerate(urls, start=1):
+            print(f"Processing URL {index} of {len(urls)}")
             driver.get(url)
             sleep(3)
             # extracting earning call links
@@ -76,29 +77,29 @@ def extract_earning_call_links():
                 # click on the reject cookies button
                 driver.find_element(By.XPATH, reject_cookies_xpath).click()
 
-        for i in range(1, 5):
-            # Construct the XPath string
-            xpath_a = base_xpath_earning_call_a + str(i) + "]"
-            xpath_b = base_xpath_earning_call_b_plan + str(i) + "]"
+            for i in range(1, 5):
+                # Construct the XPath string
+                xpath_a = base_xpath_earning_call_a + str(i) + "]"
+                xpath_b = base_xpath_earning_call_b_plan + str(i) + "]"
 
-            # Wait for the element to be present and then select it
-            try:
-                element = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.XPATH, xpath_a)))
-            except:
+                # Wait for the element to be present and then select it
                 try:
                     element = WebDriverWait(driver, 5).until(
-                        EC.presence_of_element_located((By.XPATH, xpath_b)))
+                        EC.presence_of_element_located((By.XPATH, xpath_a)))
                 except:
-                    print(
-                        f"Element not found for index {i}. Skipping to next index.")
-                    continue
+                    try:
+                        element = WebDriverWait(driver, 5).until(
+                            EC.presence_of_element_located((By.XPATH, xpath_b)))
+                    except:
+                        print(
+                            f"Element not found for index {i}. Skipping to next index.")
+                        continue
 
-            # Get the href attribute of the element
-            link = element.get_attribute('href')
+                # Get the href attribute of the element
+                link = element.get_attribute('href')
 
-            # Write the link to the text file
-            file.write(link + '\n')
+                # Write the link to the text file
+                file.write(link + '\n')
 
     # Close the WebDriver
     driver.quit()
@@ -110,13 +111,14 @@ def scrape_and_save():
         links = links_file.read().splitlines()
 
     for ticker, link in zip(tickers, links):
+        print(link)
         response = requests.get(link)
         soup = BeautifulSoup(response.content, 'html.parser')
-        article_body = soup.find('div', class_='tailwind-article-body')
+        article_body = soup.find('div', class_='article-body')
         text = ' '.join(p.get_text() for p in article_body.find_all('p'))
 
         ticker, quarter, year = ticker.split(',')
-        directory = f'data_collection/transcripts/{ticker.upper()}'
+        directory = f'data_collection/transcripts_sample/{ticker.upper()}'
         if not os.path.exists(directory):
             os.makedirs(directory)
 
