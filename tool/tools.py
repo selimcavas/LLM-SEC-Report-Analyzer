@@ -45,6 +45,9 @@ from prompts.prompt_templates import transcript_analyze, sql_related, parse_sql,
 from finbert import calculate_sentiment
 from sklearn.metrics import mean_absolute_error
 
+import glob
+
+
 load_dotenv()
 # Bu toollar bir şekilde birden fazla paramater ile çağrılmalı ki böylece args_schema kullanımı anlamlı hale gelsin.
 
@@ -398,18 +401,16 @@ def stock_prices_predictor_tool(days, ticker):
 
     perceptron_model = load_model(f'models/perceptron.keras')
 
-
     ################## before new predictions, we need to define avg sentiment score ############################
 
-    ## we ll use them when all trancript speech is updated
-    # now = datetime.now()
-    # year = str(now.year)
-    # quarter = "Q" + str((now.month - 1) // 3 + 1)
-
     # Use the current year and quarter for transcript analysis
-    rag_output = transcript_analyze_tool("Q1", "2023", ticker)
-    avg_sentiment_score = calculate_sentiment(rag_output["result"].replace("$", "\$"))
-    
+    quarter, year = get_most_recent_transcript(ticker)
+    rag_output = transcript_analyze_tool(quarter, year, ticker)
+    avg_sentiment_score = calculate_sentiment(
+        rag_output["result"].replace("$", "\$"))
+    # print selected transcript
+    print(f"🟠 Selected transcript: {ticker} {quarter} {year}")
+    print(f"🟠 AVG Sentiment Score: {avg_sentiment_score}")
 
     # Initialize an empty list to store the new predictions
     new_predictions = []
@@ -506,7 +507,7 @@ def stock_prices_predictor_tool(days, ticker):
         "last_predicted_date": last_predicted_date,
         "last_actual_price": last_actual_price,
         "last_predicted_price": last_predicted_price,
-        "sentiment_score":avg_sentiment_score
+        "sentiment_score": avg_sentiment_score
 
     }).replace("$", "\$")
 
@@ -568,3 +569,37 @@ def svr_prediction(df, forward_days):
     print(output)
 
     return predicted_data, output
+
+
+def get_most_recent_transcript(ticker: str) -> tuple:
+    # Define the path to the transcripts folder
+    transcripts_folder = os.path.join("data_collection", "transcripts_sample")
+
+    # Create a pattern to match the transcript file name
+    pattern = f"{ticker}_*.txt"
+
+    # Get a list of all matching transcript files
+    transcript_files = glob.glob(os.path.join(transcripts_folder, pattern))
+
+    # Check if any transcript files were found
+    if not transcript_files:
+        return f"No transcript found for {ticker}"
+
+    # Extract year and quarter from file names and sort
+    sorted_transcript_files = sorted(
+        transcript_files,
+        key=lambda f: (int(os.path.basename(f).split('_')[2].split('.')[0]), int(
+            os.path.basename(f).split('_')[1][1:].replace('q', ''))),
+        reverse=True
+    )
+
+    # Get the path to the most recent transcript file
+    most_recent_transcript = sorted_transcript_files[0]
+
+    # Extract the quarter and year from the file name
+    file_name = os.path.basename(most_recent_transcript)
+    quarter, year = file_name.split("_")[1].upper(), file_name.split("_")[
+        2].split(".")[0]
+
+    # Return the quarter and year separately
+    return quarter, year

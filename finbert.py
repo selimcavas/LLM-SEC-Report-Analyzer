@@ -1,5 +1,8 @@
 
 from transformers import pipeline, BertTokenizer
+import os
+import glob
+import datetime
 
 
 def calculate_sentiment(text):
@@ -19,6 +22,41 @@ def calculate_sentiment(text):
     avg_sentiment = sum(sentiment_scores) / len(sentiment_scores)
     print(f"🟠 AVG Sentiment Score: {avg_sentiment}")
     return avg_sentiment
+
+
+def get_most_recent_transcript(ticker: str) -> tuple:
+    # Define the path to the transcripts folder
+    transcripts_folder = os.path.join("data_collection", "transcripts_sample")
+
+    # Create a pattern to match the transcript file name
+    pattern = f"{ticker}_*.txt"
+
+    # Get a list of all matching transcript files
+    transcript_files = glob.glob(os.path.join(transcripts_folder, pattern))
+
+    # Check if any transcript files were found
+    if not transcript_files:
+        return f"No transcript found for {ticker}"
+
+    # Extract year and quarter from file names and sort
+    sorted_transcript_files = sorted(
+        transcript_files,
+        key=lambda f: (int(os.path.basename(f).split('_')[2].split('.')[0]), int(
+            os.path.basename(f).split('_')[1][1:].replace('q', ''))),
+        reverse=True
+    )
+
+    # Get the path to the most recent transcript file
+    most_recent_transcript = sorted_transcript_files[0]
+
+    # Extract the quarter and year from the file name
+    file_name = os.path.basename(most_recent_transcript)
+    quarter, year = file_name.split("_")[1].upper(), file_name.split("_")[
+        2].split(".")[0]
+
+    # Return the quarter and year separately
+    return quarter, year
+
 
 if __name__ == "__main__":
 
@@ -55,6 +93,11 @@ if __name__ == "__main__":
 
     Based on the Q2 2022 financial performance and statements made during the earnings call, Apple is on a growth trajectory. The company's diverse product portfolio, focus on services, and strategic expansion into new markets outweigh the risks associated with supply chain constraints and potential economic downturns."
     """
-    sentiment_score = calculate_sentiment(report_text)
+    """ sentiment_score = calculate_sentiment(report_text)
 
-    print(f"Sentiment Score: {sentiment_score}")
+    print(f"Sentiment Score: {sentiment_score}") """
+
+    ticker = "tsla"
+
+    quarter, year = get_most_recent_transcript(ticker)
+    print(f"Most recent transcript for {ticker}: {quarter} {year}")
