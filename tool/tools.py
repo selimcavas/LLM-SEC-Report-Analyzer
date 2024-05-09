@@ -395,7 +395,6 @@ def stock_prices_predictor_tool(days, ticker):
     inverse = scaler.inverse_transform(pred_array)
     # Take the first column of inverse as the predictions
     predicted_prices = inverse[:, 0]
-    print(f"🟢 predictions: {predicted_prices}")
 
     # Create predictions based on the sentiment score
 
@@ -414,6 +413,7 @@ def stock_prices_predictor_tool(days, ticker):
 
     # Initialize an empty list to store the new predictions
     new_predictions = []
+    perceptron_preds = []
 
     # Initialize the first predicted price
     predicted_price = predicted_prices[0]
@@ -437,11 +437,14 @@ def stock_prices_predictor_tool(days, ticker):
 
         # Append the new prediction to the new_predictions list
         new_predictions.append(predicted_price)
+        perceptron_preds.append(perceptron_pred[0][0])
 
     # Convert the new_predictions list to a numpy array
     new_predictions = np.array(new_predictions)
 
-    print(f"🟠 New predictions: {new_predictions}")
+    print(f"🔴 LSTM predictions: {predicted_prices}")
+    print(f"🟡 Perceptron predictions: {perceptron_preds}")
+    print(f"🟢 New predictions: {new_predictions}")
 
     predicted_prices = new_predictions
 
