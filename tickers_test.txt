@@ -2,4 +2,3 @@ AAPL
 MSFT
 AMZN
 NVDA
-
