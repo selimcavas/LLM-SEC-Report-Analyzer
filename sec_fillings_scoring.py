@@ -20,10 +20,10 @@ def calculate_sentiment(text):
     avg_sentiment = {k: v / len(chunks) for k, v in sentiment_scores.items()}
     return avg_sentiment
 
+
 def get_filings_and_sentiment(ticker):
     company = Company(ticker)
-    filings = company.get_filings(form="10-Q").latest(2)
-    filings_data = []
+    filings = company.get_filings(form="10-Q").latest(10)
 
     for filing in filings:
         filing_text = filing.text()
@@ -31,26 +31,39 @@ def get_filings_and_sentiment(ticker):
         filing_date = filing.filing_date
         sentiment_score = calculate_sentiment(filing_text)
         report_name = f"sec_{ticker}_{filing_date}"
-        filings_data.append({
+        filing_data = {
             "ticker": ticker,
             "report_name": report_name,
             "positive_sentiment": sentiment_score['Positive'],
             "negative_sentiment": sentiment_score['Negative'],
             "neutral_sentiment": sentiment_score['Neutral']
-        })
+        }
 
-    return filings_data
+        # Check if the Excel file exists
+        if not os.path.isfile('sentiment_scores.xlsx'):
+            # If not, create a new DataFrame and write it to the Excel file
+            df = pd.DataFrame([filing_data])
+            df.to_excel('sentiment_scores.xlsx', index=False)
+        else:
+            # If the Excel file exists, read it into a DataFrame
+            df = pd.read_excel('sentiment_scores.xlsx')
+
+            # Check if the report name already exists in the DataFrame
+            if report_name in df['report_name'].values:
+                # If it does, skip this filing
+                continue
+
+            # If the report name does not exist, append the new data to the DataFrame
+            df = pd.concat([df, pd.DataFrame([filing_data])], ignore_index=True)
+            # Write the DataFrame back to the Excel file
+            df.to_excel('sentiment_scores.xlsx', index=False)
 
 def main():
-    with open("tickers_test.txt", "r") as f:
+    with open("tickers.txt", "r") as f:
         tickers = f.read().splitlines()
-    all_filings_data = []
     for ticker in tickers:
         print(f"Processing {ticker}...")
-        filings_data = get_filings_and_sentiment(ticker)
-        all_filings_data.extend(filings_data)
-    filings_df = pd.DataFrame(all_filings_data)
-    filings_df.to_excel("sentiment_scores.xlsx")
+        get_filings_and_sentiment(ticker)
 
 if __name__ == "__main__":
     set_identity("Metin metin.arkanoz@ozu.edu.tr")
