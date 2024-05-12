@@ -14,7 +14,7 @@ def str_to_datetime(s):
   year, month, day = int(split[0]), int(split[1]), int(split[2])
   return datetime.datetime(year=year, month=month, day=day)
 
-def df_to_windowed_df(dataframe, first_date_str, last_date_str, n=3):
+def df_to_windowed_df(dataframe, first_date_str, last_date_str, n=4):
     first_date = str_to_datetime(first_date_str)
     last_date  = str_to_datetime(last_date_str)
 
@@ -69,7 +69,7 @@ def windowed_df_to_date_X_y(windowed_dataframe):
   dates = df_as_np[:, 0]
 
   middle_matrix = df_as_np[:, 1:-1]
-  X = middle_matrix.reshape((len(dates), middle_matrix.shape[1], 1))
+  X = middle_matrix.reshape((len(dates), 1, middle_matrix.shape[1]))
 
   Y = df_as_np[:, -1]
 
@@ -106,7 +106,7 @@ def getprevious_closest_reports(ticker, date, excel_file="sentiment_scores.xlsx"
 
 
 def train_model(X_train, y_train, X_val, y_val):
-    model = Sequential([layers.Input((X_train.shape[1], 1)),
+    model = Sequential([layers.Input((1, X_train.shape[2])),
                         layers.LSTM(64),
                         layers.Dense(32, activation='relu'),
                         layers.Dense(32, activation='relu'),
@@ -150,7 +150,12 @@ def main(ticker):
     X_train, y_train = X[:split_index1], Y[:split_index1]
     X_val, y_val = X[split_index1:split_index2], Y[split_index1:split_index2]
     X_test, y_test = X[split_index2:], Y[split_index2:]
-
+    # X_train = X_train.reshape(X_train.shape[0], 2, -1)
+    # X_val = X_val.reshape(X_val.shape[0], 2, -1)
+    # X_test = X_test.reshape(X_test.shape[0], 2, -1)
+    print("🔵",X_train)
+    print("🔴",X_train.shape)
+    print("🟢",y_train.shape)
     # Train the model
     model = train_model(X_train, y_train, X_val, y_val)
 
