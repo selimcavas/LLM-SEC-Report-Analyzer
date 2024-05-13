@@ -1,15 +1,22 @@
 import pandas as pd
 import datetime
 import numpy as np
+import matplotlib.pyplot as plt
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import layers
 from pandas_datareader import data as pdr
 import yfinance as yf
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_absolute_percentage_error, r2_score
+import os
 yf.pdr_override()
 
 scaler = MinMaxScaler()
+
+# Initialize an empty DataFrame
+eval_data = pd.DataFrame(
+    columns=['ticker', 'loss', 'mae', 'mape', 'r2'])
 
 
 def str_to_datetime(s):
@@ -125,20 +132,23 @@ def getprevious_closest_reports(ticker, date, excel_file="sentiment_scores.xlsx"
     return closest_reports[['positive_sentiment', 'negative_sentiment', 'neutral_sentiment']].values.flatten().tolist()
 
 
-def train_model(X_train, y_train, X_val, y_val):
+def train_model(X_train, y_train, X_val, y_val, ticker):
     model = Sequential([layers.Input((2, X_train.shape[2])),
                         layers.LSTM(64),
-                        layers.Dense(32, activation='relu'),
                         layers.Dense(32, activation='relu'),
                         layers.Dense(1)])
     model.compile(loss='mse',
                   optimizer=Adam(learning_rate=0.01),
                   metrics=['mean_absolute_error'])
     model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=100)
+
+    # Save the model
+    model.save(f'models/new/{ticker}.keras')
     return model
 
 
 def main(ticker, scaler=scaler):
+    global eval_data
     price_data = get_price_data(ticker)
 
     # Fit the scaler on the entire Close price data
@@ -152,6 +162,9 @@ def main(ticker, scaler=scaler):
     print("✴️", windowed_df.head())
     # Add the report scores to each row in the windowed DataFrame
     for i in range(len(windowed_df)):
+        print(
+            f"\rProcessing row {i+1}/{len(windowed_df)} for ticker: {ticker}", end="")
+
         target_date_in_row = windowed_df.iloc[i, 0]
         report_data = getprevious_closest_reports(ticker, target_date_in_row)
 
@@ -196,7 +209,7 @@ def main(ticker, scaler=scaler):
     print("🔴", X_train.shape)
     print("🟢", y_train.shape)
     # Train the model
-    model = train_model(X_train, y_train, X_val, y_val)
+    model = train_model(X_train, y_train, X_val, y_val, ticker)
 
     # Get the predictions
     predictions = model.predict(X_test)
@@ -204,6 +217,18 @@ def main(ticker, scaler=scaler):
     # Evaluate the model on the test set
     test_loss, test_mae = model.evaluate(X_test, y_test)
     print(f"Test Loss: {test_loss}, Test MAE: {test_mae}")
+
+    # Calculate MAPE and R2 score
+    test_mape = mean_absolute_percentage_error(y_test, predictions)
+    test_r2 = r2_score(y_test, predictions)
+
+    # Add the evaluation data to the DataFrame
+    new_row = pd.DataFrame({'ticker': [ticker], 'loss': [test_loss], 'mae': [
+                           test_mae], 'mape': [test_mape], 'r2': [test_r2]})
+    eval_data = pd.concat([eval_data, new_row], ignore_index=True)
+
+    # Write the DataFrame to an Excel file
+    eval_data.to_csv('model_evaluations.csv', mode='a', index=False)
 
     # Inverse transform y_test, y_val, and the predictions
     y_test = scaler.inverse_transform(y_test)
@@ -215,6 +240,25 @@ def main(ticker, scaler=scaler):
         print(
             f"Predicted price vs actual: {predictions[i][0]}, {y_test[i][0]}")
 
+    # Plot the predicted vs actual prices
+    # plt.figure(figsize=(10, 5))
+    # plt.plot(predictions, label='Predicted')
+    # plt.plot(y_test, label='Actual')
+    # plt.title(f'Predicted vs Actual Prices for {ticker}')
+    # plt.xlabel('Time')
+    # plt.ylabel('Price')
+    # plt.legend()
+    # plt.show()
+
 
 if __name__ == "__main__":
-    main('AAPL')
+    # Check if the file exists
+    if not os.path.isfile('model_evaluations.csv'):
+        # Write the DataFrame to an Excel file
+        eval_data.to_csv('model_evaluations.csv', index=False)
+
+    with open('tickers.txt', 'r') as file:
+        tickers = file.read().splitlines()
+
+    for ticker in tickers:
+        main(ticker)
