@@ -6,17 +6,22 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import layers
 from pandas_datareader import data as pdr
 import yfinance as yf
+from sklearn.preprocessing import MinMaxScaler
 yf.pdr_override()
+
+scaler = MinMaxScaler()
 
 
 def str_to_datetime(s):
-  split = s.split('-')
-  year, month, day = int(split[0]), int(split[1]), int(split[2])
-  return datetime.datetime(year=year, month=month, day=day)
+    split = s.split('-')
+    year, month, day = int(split[0]), int(split[1]), int(split[2])
+    return datetime.datetime(year=year, month=month, day=day)
 
-def df_to_windowed_df(dataframe, first_date_str, last_date_str, n=4):
+
+def df_to_windowed_df(dataframe, first_date_str, last_date_str, n, scaler=scaler):
+
     first_date = str_to_datetime(first_date_str)
-    last_date  = str_to_datetime(last_date_str)
+    last_date = str_to_datetime(last_date_str)
 
     target_date = first_date
 
@@ -28,21 +33,25 @@ def df_to_windowed_df(dataframe, first_date_str, last_date_str, n=4):
         df_subset = dataframe.loc[:target_date].tail(n+1)
 
         if len(df_subset) != n+1:
-            print(f'Warning: Window of size {n} is too large for date {target_date}. Skipping this date.')
+            print(
+                f'Warning: Window of size {n} is too large for date {target_date}. Skipping this date.')
         else:
-            values = df_subset['Close'].to_numpy()
-            x, y = values[:-1], values[-1]
+            # values = df_subset['Close'].to_numpy()
+            values = scaler.transform(df_subset[['Close']])
+            x, y = values[:-1], values[-1][0]
 
             dates.append(target_date)
             X.append(x)
             Y.append(y)
 
-        next_week = dataframe.loc[target_date:target_date+datetime.timedelta(days=7)]
+        next_week = dataframe.loc[target_date:target_date +
+                                  datetime.timedelta(days=7)]
         next_datetime_str = str(next_week.head(2).tail(1).index.values[0])
         next_date_str = next_datetime_str.split('T')[0]
         year_month_day = next_date_str.split('-')
         year, month, day = year_month_day
-        next_date = datetime.datetime(day=int(day), month=int(month), year=int(year))
+        next_date = datetime.datetime(
+            day=int(day), month=int(month), year=int(year))
 
         if last_time:
             break
@@ -63,23 +72,35 @@ def df_to_windowed_df(dataframe, first_date_str, last_date_str, n=4):
 
     return ret_df
 
+
 def windowed_df_to_date_X_y(windowed_dataframe):
-  df_as_np = windowed_dataframe.to_numpy()
+    df_as_np = windowed_dataframe.to_numpy()
 
-  dates = df_as_np[:, 0]
+    dates = df_as_np[:, 0]
 
-  middle_matrix = df_as_np[:, 1:-1]
-  X = middle_matrix.reshape((len(dates), 1, middle_matrix.shape[1]))
+    stock_prices = df_as_np[:, 1:11]  # 10 past stock prices
+    sentiment_scores = df_as_np[:, 11:-1]  # 12 sentiment scores
 
-  Y = df_as_np[:, -1]
+    # Reshape the data to the form (number of samples, timesteps, number of features)
+    X_stock_prices = stock_prices.reshape(
+        (len(dates), 1, stock_prices.shape[1]))
+    X_sentiment_scores = sentiment_scores.reshape(
+        (len(dates), 1, sentiment_scores.shape[1]))
 
-  return dates, X.astype(np.float32), Y.astype(np.float32)
+    # Concatenate the stock prices and sentiment scores along the time step axis
+    X = np.concatenate((X_stock_prices, X_sentiment_scores), axis=2)
+
+    Y = df_as_np[:, -1]
+
+    return dates, X.astype(np.float32), Y.astype(np.float32)
+
 
 def get_price_data(ticker, years=2):
     end = datetime.datetime.now()
     start = end - datetime.timedelta(days=years*365)
     df = pdr.get_data_yahoo(ticker, start, end)
     return df
+
 
 def getprevious_closest_reports(ticker, date, excel_file="sentiment_scores.xlsx"):
     # Read the Excel file into a DataFrame
@@ -104,26 +125,31 @@ def getprevious_closest_reports(ticker, date, excel_file="sentiment_scores.xlsx"
     return closest_reports[['positive_sentiment', 'negative_sentiment', 'neutral_sentiment']].values.flatten().tolist()
 
 
-
 def train_model(X_train, y_train, X_val, y_val):
-    model = Sequential([layers.Input((1, X_train.shape[2])),
+    model = Sequential([layers.Input((2, X_train.shape[2])),
                         layers.LSTM(64),
                         layers.Dense(32, activation='relu'),
                         layers.Dense(32, activation='relu'),
                         layers.Dense(1)])
-    model.compile(loss='mse', 
-                  optimizer=Adam(learning_rate=0.001),
+    model.compile(loss='mse',
+                  optimizer=Adam(learning_rate=0.01),
                   metrics=['mean_absolute_error'])
     model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=100)
     return model
 
-def main(ticker):
+
+def main(ticker, scaler=scaler):
     price_data = get_price_data(ticker)
+
+    # Fit the scaler on the entire Close price data
+    scaler.fit(price_data[['Close']])
+
     # Convert the price data to a windowed DataFrame
     first_date_str = price_data.index[0].strftime('%Y-%m-%d')
     last_date_str = price_data.index[-1].strftime('%Y-%m-%d')
-    windowed_df = df_to_windowed_df(price_data, first_date_str, last_date_str)
-    print("✴️",windowed_df.head())
+    windowed_df = df_to_windowed_df(
+        price_data, first_date_str, last_date_str, 10)
+    print("✴️", windowed_df.head())
     # Add the report scores to each row in the windowed DataFrame
     for i in range(len(windowed_df)):
         target_date_in_row = windowed_df.iloc[i, 0]
@@ -136,10 +162,11 @@ def main(ticker):
 
     # Rearrange the columns
     cols = windowed_df.columns.tolist()
-    cols = cols[:4] + cols[5:] + [cols[4]]  # Move 'Target' column to the end
+    # Move 'Target' column to the end
+    cols = cols[:11] + cols[12:] + [cols[11]]
     windowed_df = windowed_df[cols]
 
-    print("🛑",windowed_df.head())
+    print("🛑", windowed_df.head())
 
     # Convert the windowed DataFrame to input and target data
     dates, X, Y = windowed_df_to_date_X_y(windowed_df)
@@ -153,15 +180,41 @@ def main(ticker):
     # X_train = X_train.reshape(X_train.shape[0], 2, -1)
     # X_val = X_val.reshape(X_val.shape[0], 2, -1)
     # X_test = X_test.reshape(X_test.shape[0], 2, -1)
-    print("🔵",X_train)
-    print("🔴",X_train.shape)
-    print("🟢",y_train.shape)
+
+    # Reshape y_train, y_val, and y_test to be 2D arrays
+    y_train = y_train.reshape(-1, 1)
+    y_val = y_val.reshape(-1, 1)
+    y_test = y_test.reshape(-1, 1)
+
+    # Fit the scaler on y_train and transform y_train, y_val, and y_test
+    # scaler.fit(y_train)
+    # y_train = scaler.transform(y_train)
+    # y_val = scaler.transform(y_val)
+    # y_test = scaler.transform(y_test)
+
+    print("🔵", X_train)
+    print("🔴", X_train.shape)
+    print("🟢", y_train.shape)
     # Train the model
     model = train_model(X_train, y_train, X_val, y_val)
+
+    # Get the predictions
+    predictions = model.predict(X_test)
 
     # Evaluate the model on the test set
     test_loss, test_mae = model.evaluate(X_test, y_test)
     print(f"Test Loss: {test_loss}, Test MAE: {test_mae}")
+
+    # Inverse transform y_test, y_val, and the predictions
+    y_test = scaler.inverse_transform(y_test)
+    y_val = scaler.inverse_transform(y_val)
+    predictions = scaler.inverse_transform(predictions)
+
+    # Print out the predicted and actual prices
+    for i in range(len(predictions)):
+        print(
+            f"Predicted price vs actual: {predictions[i][0]}, {y_test[i][0]}")
+
 
 if __name__ == "__main__":
     main('AAPL')
