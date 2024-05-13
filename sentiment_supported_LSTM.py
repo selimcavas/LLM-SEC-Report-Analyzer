@@ -10,6 +10,7 @@ import yfinance as yf
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_percentage_error, r2_score
 import os
+
 yf.pdr_override()
 
 scaler = MinMaxScaler()
@@ -168,6 +169,11 @@ def main(ticker, scaler=scaler):
         target_date_in_row = windowed_df.iloc[i, 0]
         report_data = getprevious_closest_reports(ticker, target_date_in_row)
 
+        # If there are less than 4 reports, skip this ticker
+        if len(report_data) < 12:  # Each report has 3 values (positive, negative, neutral)
+            print(f"Skipping {ticker} due to insufficient reports.")
+            return
+
         for j in range(4):  # There are 4 reports
             windowed_df.loc[i, f'report_{j}_pos'] = report_data[j*3]
             windowed_df.loc[i, f'report_{j}_neg'] = report_data[j*3 + 1]
@@ -225,10 +231,9 @@ def main(ticker, scaler=scaler):
     # Add the evaluation data to the DataFrame
     new_row = pd.DataFrame({'ticker': [ticker], 'loss': [test_loss], 'mae': [
                            test_mae], 'mape': [test_mape], 'r2': [test_r2]})
-    eval_data = pd.concat([eval_data, new_row], ignore_index=True)
-
-    # Write the DataFrame to an Excel file
-    eval_data.to_csv('model_evaluations.csv', mode='a', index=False)
+    # Append the new row to the CSV file
+    new_row.to_csv('model_evaluations.csv', mode='a',
+                   header=False, index=False)
 
     # Inverse transform y_test, y_val, and the predictions
     y_test = scaler.inverse_transform(y_test)
@@ -252,12 +257,14 @@ def main(ticker, scaler=scaler):
 
 
 if __name__ == "__main__":
-    # Check if the file exists
+
     if not os.path.isfile('model_evaluations.csv'):
+        eval_data = pd.DataFrame(
+            columns=['ticker', 'loss', 'mae', 'mape', 'r2'])
         # Write the DataFrame to an Excel file
         eval_data.to_csv('model_evaluations.csv', index=False)
 
-    with open('tickers.txt', 'r') as file:
+    with open('tickers_test.txt', 'r') as file:
         tickers = file.read().splitlines()
 
     for ticker in tickers:
