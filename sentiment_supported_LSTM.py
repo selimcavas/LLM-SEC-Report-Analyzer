@@ -110,7 +110,7 @@ def get_price_data(ticker, years=2):
     return df
 
 
-def getprevious_closest_reports(ticker, date, excel_file="sentiment_scores.xlsx"):
+def getprevious_closest_reports(ticker, date, excel_file="filtered_sentiment_scores.xlsx"):
     # Read the Excel file into a DataFrame
     df = pd.read_excel(excel_file)
 
@@ -135,8 +135,8 @@ def getprevious_closest_reports(ticker, date, excel_file="sentiment_scores.xlsx"
 
 def train_model(X_train, y_train, X_val, y_val, ticker):
     model = Sequential([layers.Input((2, X_train.shape[2])),
-                        layers.LSTM(64),
-                        layers.Dense(32, activation='relu'),
+                        layers.LSTM(128),
+                        layers.Dense(64, activation='relu'),
                         layers.Dense(1)])
     model.compile(loss='mse',
                   optimizer=Adam(learning_rate=0.01),
@@ -144,7 +144,7 @@ def train_model(X_train, y_train, X_val, y_val, ticker):
     model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=100)
 
     # Save the model
-    model.save(f'models/new/{ticker}.keras')
+    model.save(f'models/lstm_sentiment_filtered/{ticker}.keras')
     return model
 
 
@@ -232,7 +232,7 @@ def main(ticker, scaler=scaler):
     new_row = pd.DataFrame({'ticker': [ticker], 'loss': [test_loss], 'mae': [
                            test_mae], 'mape': [test_mape], 'r2': [test_r2]})
     # Append the new row to the CSV file
-    new_row.to_csv('model_evaluations.csv', mode='a',
+    new_row.to_csv('filtered_model_evaluations.csv', mode='a',
                    header=False, index=False)
 
     # Inverse transform y_test, y_val, and the predictions
@@ -258,13 +258,13 @@ def main(ticker, scaler=scaler):
 
 if __name__ == "__main__":
 
-    if not os.path.isfile('model_evaluations.csv'):
+    if not os.path.isfile('filtered_model_evaluations.csv'):
         eval_data = pd.DataFrame(
             columns=['ticker', 'loss', 'mae', 'mape', 'r2'])
         # Write the DataFrame to an Excel file
-        eval_data.to_csv('model_evaluations.csv', index=False)
+        eval_data.to_csv('filtered_model_evaluations.csv', index=False)
 
-    with open('tickers_test.txt', 'r') as file:
+    with open('tickers.txt', 'r') as file:
         tickers = file.read().splitlines()
 
     for ticker in tickers:

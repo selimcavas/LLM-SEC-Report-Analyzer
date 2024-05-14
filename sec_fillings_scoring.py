@@ -4,9 +4,11 @@ import os
 import pandas as pd
 from sec_parser import parse_10Q_filing
 
+
 def calculate_sentiment(text):
     tokenizer = BertTokenizer.from_pretrained("yiyanghkust/finbert-tone")
-    classifier = pipeline('sentiment-analysis', model="yiyanghkust/finbert-tone")
+    classifier = pipeline('sentiment-analysis',
+                          model="yiyanghkust/finbert-tone")
 
     # Split the text into chunks of 500 tokens or less
     chunks = [text[i:i+500] for i in range(0, len(text), 500)]
@@ -54,16 +56,20 @@ def get_filings_and_sentiment(ticker):
                 continue
 
             # If the report name does not exist, append the new data to the DataFrame
-            df = pd.concat([df, pd.DataFrame([filing_data])], ignore_index=True)
+            df = pd.concat([df, pd.DataFrame([filing_data])],
+                           ignore_index=True)
             # Write the DataFrame back to the Excel file
             df.to_excel('sentiment_scores.xlsx', index=False)
 
+
 def main():
+
     with open("tickers.txt", "r") as f:
         tickers = f.read().splitlines()
     for ticker in tickers:
         print(f"Processing {ticker}...")
         get_filings_and_sentiment(ticker)
+
 
 if __name__ == "__main__":
     set_identity("Metin metin.arkanoz@ozu.edu.tr")
