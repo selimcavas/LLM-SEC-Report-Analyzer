@@ -35,13 +35,8 @@ def windowed_df_to_date_X_y(windowed_dataframe):
 
     dates = df_as_np[:, 0]
 
-    stock_prices = df_as_np[:, 1:]  # past stock prices
-
-    # Reshape the data to the form (number of samples, timesteps, number of features)
-    X_stock_prices = stock_prices.reshape(
-        (len(dates), 1, stock_prices.shape[1]))
-
-    X = X_stock_prices
+    middle_matrix = df_as_np[:, 1:-1]
+    X = middle_matrix.reshape((len(dates), middle_matrix.shape[1], 1))
 
     Y = df_as_np[:, -1]
 
@@ -50,7 +45,7 @@ def windowed_df_to_date_X_y(windowed_dataframe):
 
 def train_model(X_train, y_train, X_val, y_val, ticker):
     model = Sequential([
-        layers.Input((1, X_train.shape[2])),  # Changed from 2 to 1
+        layers.Input((10, 1)),
         layers.LSTM(128),
         layers.Dense(64, activation='relu'),
         layers.Dense(1)
@@ -69,6 +64,9 @@ def main(ticker, scaler=scaler):
     global eval_data
     price_data = get_price_data(ticker)
 
+    # Create a new DataFrame that only contains the 'Close' column
+    price_data = price_data[['Close']].copy()
+
     # Fit the scaler on the entire Close price data
     scaler.fit(price_data[['Close']])
 
@@ -80,6 +78,10 @@ def main(ticker, scaler=scaler):
     print("✴️", windowed_df.head())
     # Convert the windowed DataFrame to input and target data
     dates, X, Y = windowed_df_to_date_X_y(windowed_df)
+
+    print("🔵", X)
+    print("🔴", X.shape)
+    print("🟢", Y.shape)
 
     # Split the data into training, validation, and test sets
     split_index1 = int(len(X) * 0.8)

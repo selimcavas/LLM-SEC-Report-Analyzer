@@ -27,7 +27,6 @@ def str_to_datetime(s):
 
 
 def df_to_windowed_df(dataframe, first_date_str, last_date_str, n, scaler=scaler):
-
     first_date = str_to_datetime(first_date_str)
     last_date = str_to_datetime(last_date_str)
 
@@ -44,9 +43,9 @@ def df_to_windowed_df(dataframe, first_date_str, last_date_str, n, scaler=scaler
             print(
                 f'Warning: Window of size {n} is too large for date {target_date}. Skipping this date.')
         else:
-            # values = df_subset['Close'].to_numpy()
-            values = scaler.transform(df_subset[['Close']])
-            x, y = values[:-1], values[-1][0]
+            # values = df_subset.to_numpy()
+            values = scaler.transform(df_subset)
+            x, y = values[:-1], values[-1]
 
             dates.append(target_date)
             X.append(x)
@@ -74,7 +73,8 @@ def df_to_windowed_df(dataframe, first_date_str, last_date_str, n, scaler=scaler
 
     X = np.array(X)
     for i in range(0, n):
-        ret_df[f'Target-{n-i}'] = X[:, i]
+        for j in range(df_subset.shape[1]):
+            ret_df[f'Target-{n-i}-{j}'] = X[:, i, j]
 
     ret_df['Target'] = Y
 
@@ -134,7 +134,7 @@ def getprevious_closest_reports(ticker, date, excel_file="filtered_sentiment_sco
 
 
 def train_model(X_train, y_train, X_val, y_val, ticker):
-    model = Sequential([layers.Input((2, X_train.shape[2])),
+    model = Sequential([layers.Input((X_train.shape[1], X_train.shape[2])),
                         layers.LSTM(128),
                         layers.Dense(64, activation='relu'),
                         layers.Dense(1)])
@@ -148,25 +148,31 @@ def train_model(X_train, y_train, X_val, y_val, ticker):
     return model
 
 
+def df_to_X_y(df, window_size=10):
+    df_as_np = df.to_numpy()
+    X = []
+    y = []
+    for i in range(len(df_as_np)-window_size):
+        row = [r for r in df_as_np[i:i+window_size]]
+        X.append(row)
+        label = df_as_np[i+window_size][0]
+        y.append(label)
+    return np.array(X), np.array(y)
+
+
 def main(ticker, scaler=scaler):
     global eval_data
     price_data = get_price_data(ticker)
 
-    # Fit the scaler on the entire Close price data
-    scaler.fit(price_data[['Close']])
+    # Create a new DataFrame that only contains the 'Close' column
+    price_data = price_data[['Close']].copy()
 
-    # Convert the price data to a windowed DataFrame
-    first_date_str = price_data.index[0].strftime('%Y-%m-%d')
-    last_date_str = price_data.index[-1].strftime('%Y-%m-%d')
-    windowed_df = df_to_windowed_df(
-        price_data, first_date_str, last_date_str, 10)
-    print("✴️", windowed_df.head())
-    # Add the report scores to each row in the windowed DataFrame
-    for i in range(len(windowed_df)):
+    # Add the report scores to each row in the price DataFrame
+    for i in range(len(price_data)):
         print(
-            f"\rProcessing row {i+1}/{len(windowed_df)} for ticker: {ticker}", end="")
+            f"\rProcessing row {i+1}/{len(price_data)} for ticker: {ticker}", end="")
 
-        target_date_in_row = windowed_df.iloc[i, 0]
+        target_date_in_row = price_data.index[i]
         report_data = getprevious_closest_reports(ticker, target_date_in_row)
 
         # If there are less than 4 reports, skip this ticker
@@ -175,20 +181,35 @@ def main(ticker, scaler=scaler):
             return
 
         for j in range(4):  # There are 4 reports
-            windowed_df.loc[i, f'report_{j}_pos'] = report_data[j*3]
-            windowed_df.loc[i, f'report_{j}_neg'] = report_data[j*3 + 1]
-            windowed_df.loc[i, f'report_{j}_neutral'] = report_data[j*3 + 2]
+            price_data.loc[target_date_in_row,
+                           f'report_{j}_pos'] = report_data[j*3]
+            price_data.loc[target_date_in_row,
+                           f'report_{j}_neg'] = report_data[j*3 + 1]
+            price_data.loc[target_date_in_row,
+                           f'report_{j}_neutral'] = report_data[j*3 + 2]
 
-    # Rearrange the columns
-    cols = windowed_df.columns.tolist()
-    # Move 'Target' column to the end
-    cols = cols[:11] + cols[12:] + [cols[11]]
-    windowed_df = windowed_df[cols]
+    X, Y = df_to_X_y(
+        price_data, 10)
 
-    print("🛑", windowed_df.head())
+    print("🔵", X)
+    print("🔴", X.shape)
+    print("🟢", Y)
+    print("🟢", Y.shape)
 
-    # Convert the windowed DataFrame to input and target data
-    dates, X, Y = windowed_df_to_date_X_y(windowed_df)
+    # Create a StandardScaler instance
+    scaler_X = MinMaxScaler()
+    scaler_Y = MinMaxScaler()
+
+    # Fit the scaler to the data and transform the data
+    # Reshape X to 2D
+    X_2D = X.reshape(-1, X.shape[-1])
+
+    # Scale the data
+    X_2D = scaler.fit_transform(X_2D)
+
+    # Reshape X back to 3D
+    X = X_2D.reshape(X.shape)
+    Y = scaler_Y.fit_transform(Y.reshape(-1, 1))
 
     # Split the data into training, validation, and test sets
     split_index1 = int(len(X) * 0.8)
@@ -196,24 +217,7 @@ def main(ticker, scaler=scaler):
     X_train, y_train = X[:split_index1], Y[:split_index1]
     X_val, y_val = X[split_index1:split_index2], Y[split_index1:split_index2]
     X_test, y_test = X[split_index2:], Y[split_index2:]
-    # X_train = X_train.reshape(X_train.shape[0], 2, -1)
-    # X_val = X_val.reshape(X_val.shape[0], 2, -1)
-    # X_test = X_test.reshape(X_test.shape[0], 2, -1)
 
-    # Reshape y_train, y_val, and y_test to be 2D arrays
-    y_train = y_train.reshape(-1, 1)
-    y_val = y_val.reshape(-1, 1)
-    y_test = y_test.reshape(-1, 1)
-
-    # Fit the scaler on y_train and transform y_train, y_val, and y_test
-    # scaler.fit(y_train)
-    # y_train = scaler.transform(y_train)
-    # y_val = scaler.transform(y_val)
-    # y_test = scaler.transform(y_test)
-
-    print("🔵", X_train)
-    print("🔴", X_train.shape)
-    print("🟢", y_train.shape)
     # Train the model
     model = train_model(X_train, y_train, X_val, y_val, ticker)
 
@@ -236,9 +240,9 @@ def main(ticker, scaler=scaler):
                    header=False, index=False)
 
     # Inverse transform y_test, y_val, and the predictions
-    y_test = scaler.inverse_transform(y_test)
-    y_val = scaler.inverse_transform(y_val)
-    predictions = scaler.inverse_transform(predictions)
+    y_test = scaler_Y.inverse_transform(y_test)
+    y_val = scaler_Y.inverse_transform(y_val)
+    predictions = scaler_Y.inverse_transform(predictions)
 
     # Print out the predicted and actual prices
     for i in range(len(predictions)):
