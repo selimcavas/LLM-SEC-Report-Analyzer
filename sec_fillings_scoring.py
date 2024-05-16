@@ -4,12 +4,12 @@ import os
 import pandas as pd
 from sec_parser import parse_10Q_filing
 
+tokenizer = BertTokenizer.from_pretrained("yiyanghkust/finbert-tone")
+classifier = pipeline('sentiment-analysis',
+                      model="yiyanghkust/finbert-tone")
+
 
 def calculate_sentiment(text):
-    tokenizer = BertTokenizer.from_pretrained("yiyanghkust/finbert-tone")
-    classifier = pipeline('sentiment-analysis',
-                          model="yiyanghkust/finbert-tone")
-
     # Split the text into chunks of 500 tokens or less
     chunks = [text[i:i+500] for i in range(0, len(text), 500)]
 
@@ -25,7 +25,7 @@ def calculate_sentiment(text):
 
 def get_filings_and_sentiment(ticker):
     company = Company(ticker)
-    filings = company.get_filings(form="10-Q").latest(10)
+    filings = company.get_filings(form="10-Q").latest(20)
 
     for filing in filings:
         filing_text = filing.text()
@@ -42,13 +42,13 @@ def get_filings_and_sentiment(ticker):
         }
 
         # Check if the Excel file exists
-        if not os.path.isfile('sentiment_scores.xlsx'):
+        if not os.path.isfile('sentiment_scores_test.csv'):
             # If not, create a new DataFrame and write it to the Excel file
             df = pd.DataFrame([filing_data])
-            df.to_excel('sentiment_scores.xlsx', index=False)
+            df.to_csv('sentiment_scores_test.csv', index=False)
         else:
             # If the Excel file exists, read it into a DataFrame
-            df = pd.read_excel('sentiment_scores.xlsx')
+            df = pd.read_csv('sentiment_scores_test.csv')
 
             # Check if the report name already exists in the DataFrame
             if report_name in df['report_name'].values:
@@ -59,12 +59,12 @@ def get_filings_and_sentiment(ticker):
             df = pd.concat([df, pd.DataFrame([filing_data])],
                            ignore_index=True)
             # Write the DataFrame back to the Excel file
-            df.to_excel('sentiment_scores.xlsx', index=False)
+            df.to_csv('sentiment_scores_test.csv', index=False)
 
 
 def main():
 
-    with open("tickers.txt", "r") as f:
+    with open("tickers_test.txt", "r") as f:
         tickers = f.read().splitlines()
     for ticker in tickers:
         print(f"Processing {ticker}...")
