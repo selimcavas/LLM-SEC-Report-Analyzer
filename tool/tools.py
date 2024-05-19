@@ -47,6 +47,8 @@ from sklearn.metrics import mean_absolute_error
 
 import glob
 
+## importing the util funcs from the utilities.py
+from utilities import str_to_datetime, df_to_windowed_df, windowed_df_to_date_X_y, get_price_data, getprevious_closest_reports, df_to_X_y
 
 load_dotenv()
 # Bu toollar bir şekilde birden fazla paramater ile çağrılmalı ki böylece args_schema kullanımı anlamlı hale gelsin.
@@ -310,169 +312,86 @@ def compare_cumulative_returns_tool(start: str, end: str, tickers: List[str]):
     })
 
 
-def stock_prices_predictor_tool(days, ticker):
-    # Connect to the SQLite database
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
+def stock_prices_predictor_tool(ticker):
 
-    # Calculate the start date for the last 1 year of data
-    # Prepare the SQL query to get the last record date
-    sql_query_last_date = '''
-        SELECT MAX(date)
-        FROM stock_prices
-        WHERE ticker = ?
-    '''
+    price_df = get_price_data(ticker)
+    price_data = price_df[['Close']].copy()
 
-    # Execute the SQL query
-    c.execute(sql_query_last_date, (ticker,))
-    end_date = c.fetchall()[0][0]
 
-    print(f"🟢 Last date: {end_date}")
+    # Add the report scores to each row in the price DataFrame
+    total_pos = 0
+    total_neg = 0
+    total_neutral = 0
+    for i in range(len(price_data)):
+        print(
+            f"\rProcessing row {i+1}/{len(price_data)} for ticker: {ticker}", end="")
 
-    # Convert the end_date to a datetime object
-    end_date = datetime.strptime(end_date, '%Y-%m-%d')
-    start_date = end_date - relativedelta(years=2)
+        target_date_in_row = price_data.index[i]
+        report_data = getprevious_closest_reports(ticker, target_date_in_row)
 
-    start_date_str = start_date.strftime('%Y-%m-%d')
-    end_date_str = end_date.strftime('%Y-%m-%d')
+        # If there are less than 4 reports, skip this ticker
+        if len(report_data) < 12:  # Each report has 3 values (positive, negative, neutral)
+            print(f"Skipping {ticker} due to insufficient reports.")
+            return
 
-    print(f"🟢 Start date: {start_date_str}, End date: {end_date_str}")
+        for j in range(4):  # There are 4 reports
+            price_data.loc[target_date_in_row,
+                           f'report_{j}_pos'] = report_data[j*3]
+            price_data.loc[target_date_in_row,
+                           f'report_{j}_neg'] = report_data[j*3 + 1]
+            price_data.loc[target_date_in_row,
+                           f'report_{j}_neutral'] = report_data[j*3 + 2]
+            # Add the sentiment scores to the totals
+            total_pos += report_data[j*3]
+            total_neg += report_data[j*3 + 1]
+            total_neutral += report_data[j*3 + 2]
 
-    # Prepare the SQL query
-    sql_query = '''
-        SELECT date, price, volume
-        FROM stock_prices
-        WHERE date BETWEEN ? AND ? AND ticker = ?
-        ORDER BY date
-    '''
+    # Calculate the average sentiment scores
+    avg_pos = total_pos / 4
+    avg_neg = total_neg / 4
+    avg_neutral = total_neutral / 4
 
-    # Execute the SQL query
-    c.execute(sql_query, (start_date_str, end_date_str, ticker))
-    rows = c.fetchall()
+    # Calculate the average sentiment score
+    avg_sentiment_score = (avg_pos + avg_neg + avg_neutral) / 3
 
-    # Check if any data was fetched
-    if not rows:
-        return f'No data for {ticker} between {start_date_str} and {end_date_str}'
 
-    # Convert the data to a pandas DataFrame
-    df = pd.DataFrame(rows, columns=['date', 'price', 'volume'])
+    X, Y = df_to_X_y(price_data, 10)
 
-    # Create a copy of the original DataFrame
-    df_copy = df.copy()
-
-    df['price_diff'] = df['price'].diff()
-
-    df.drop(0, inplace=True)
-    df.drop('date', axis=1, inplace=True)
-
+    print("🔵", X)
+    print("🔴", X.shape)
+    
+    # Create a StandardScaler instance
     scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(df)
 
-    win_length = 5  # window length 5 days
-    n_features = 3  # number of features
 
-    pred_list = []
-    batch = scaled_data[-win_length:].reshape((1, win_length, n_features))
-    print(batch)
+    # Fit the scaler to the data and transform the data
+    # Reshape X to 2D
+    X_2D = X.reshape(-1, X.shape[-1])
 
-    model = load_model(f'models/{ticker}.keras')
+    # Scale the data
+    X_2D = scaler.fit_transform(X_2D)
 
-    for i in range(days):  # assuming days is the number of days into the future you want to predict
-        current_pred = model.predict(batch)[0]
-        print(f"🟢 current pred: {current_pred}")
-        print(f"🟢 current pred price: {current_pred[0]}")
-        # Append only the first element of current_pred
-        pred_list.append(current_pred[0])
-        current_pred = np.repeat(
-            current_pred, n_features).reshape((1, 1, n_features))
-        print(f"🟢 batch: {batch[:, 1:, :]}")
-        print(f"🟢 current pred reshaped: {current_pred}")
-        batch = np.append(batch[:, 1:, :], current_pred, axis=1)
+    # Reshape X back to 3D
+    X = X_2D.reshape(X.shape)
 
-    # Convert pred_list to a numpy array and repeat each prediction 3 times
-    pred_array = np.repeat(np.array(pred_list), 3).reshape(-1, 3)
-    # Inverse transform the predicted data
-    inverse = scaler.inverse_transform(pred_array)
-    # Take the first column of inverse as the predictions
-    predicted_prices = inverse[:, 0]
-
-    # Create predictions based on the sentiment score
-
-    perceptron_model = load_model(f'models/perceptron.keras')
-
-    ################## before new predictions, we need to define avg sentiment score ############################
-
-    # Use the current year and quarter for transcript analysis
-    quarter, year = get_most_recent_transcript(ticker)
-    rag_output = transcript_analyze_tool(quarter, year, ticker)
-    avg_sentiment_score = calculate_sentiment(
-        rag_output["result"].replace("$", "\$"))
-    # print selected transcript
-    print(f"🟠 Selected transcript: {ticker} {quarter} {year}")
-    print(f"🟠 AVG Sentiment Score: {avg_sentiment_score}")
-
-    # Initialize an empty list to store the new predictions
-    new_predictions = []
-    perceptron_preds = []
-
-    # Initialize the first predicted price
-    predicted_price = predicted_prices[0]
-
-    # Loop over each prediction in the predicted_prices array
-    for i in range(len(predicted_prices)):
-        # Prepare the input data for the perceptron model
-        X = np.array([[predicted_price, avg_sentiment_score]])
-
-        # Use the perceptron model to make a new prediction
-        perceptron_pred = perceptron_model.predict(X)
-
-        print(f"🟣 perceptron prediction: {perceptron_pred[0][0]}")
-        print(f"🟣 lstm prediction: {predicted_prices[i]}")
-
-        hybrid_pred = perceptron_pred[0][0] * 0.8 + predicted_prices[i] * 0.2
-        print(f"🔵 hybrid prediction: {hybrid_pred}")
-
-        # Update the predicted_price with the hybrid prediction for the next iteration
-        predicted_price = hybrid_pred
-
-        # Append the new prediction to the new_predictions list
-        new_predictions.append(predicted_price)
-        perceptron_preds.append(perceptron_pred[0][0])
-
-    # Convert the new_predictions list to a numpy array
-    new_predictions = np.array(new_predictions)
-
-    print(f"🔴 LSTM predictions: {predicted_prices}")
-    print(f"🟡 Perceptron predictions: {perceptron_preds}")
-    print(f"🟢 New predictions: {new_predictions}")
-
-    predicted_prices = new_predictions
-
+    ## Get the model from models/lstm_sentiment_filtered
+    model = load_model(f"models/lstm_sentiment_filtered/{ticker}.keras")
+    # Get the predictions
+    last_sequence = np.expand_dims(X[-1], axis=0)
+    print("🔵", last_sequence)
+    predictions = model.predict(last_sequence)
+    print("🟢", predictions)
+    quit()
     ############################################################################################################
 
-    # Generate predicted_dates
-    last_date = datetime.strptime(end_date_str, '%Y-%m-%d')
-    predicted_dates = [(last_date + dt.timedelta(days=i+1)
-                        ).strftime('%Y-%m-%d') for i in range(days)]
-
-    # Append predicted prices and dates to rows
-    for date, price in zip(predicted_dates, predicted_prices.flatten()):
-        rows.append((date, price))
-
-    # Close the connection
-    conn.close()
-
-    # Convert the fetched data and predicted data to a list of tuples
-    actual_data_full = list(
-        zip(df_copy['date'].values, df_copy['price'].values))
-    actual_data = actual_data_full[-30:]
+    predicted_dates = [(last_date + dt.timedelta(days=i+1)).strftime('%Y-%m-%d') for i in range(days)]
     predicted_data = list(zip(predicted_dates, predicted_prices.flatten()))
-
+    
     # Combine the actual and predicted data
-    output = actual_data + predicted_data
+    output = price_data + predicted_data
 
     # Convert the lists to DataFrames
-    actual_data_df = pd.DataFrame(actual_data, columns=['date', 'price'])
+    actual_data_df = pd.DataFrame(price_data, columns=['date', 'price'])
     predicted_data_df = pd.DataFrame(predicted_data, columns=['date', 'price'])
 
     # Calculate the price change
@@ -504,7 +423,6 @@ def stock_prices_predictor_tool(days, ticker):
 
     llm_comment = trend_change_comment.invoke({
         "ticker": ticker,
-        "days": days,
         "price_change": price_change,
         "last_actual_date": last_actual_date,
         "last_predicted_date": last_predicted_date,
@@ -524,7 +442,6 @@ def stock_prices_predictor_tool(days, ticker):
     output_df.set_index('date', inplace=True)
 
     return output_df, llm_comment
-
 
 def svr_prediction(df, forward_days):
 
@@ -606,3 +523,8 @@ def get_most_recent_transcript(ticker: str) -> tuple:
 
     # Return the quarter and year separately
     return quarter, year
+
+
+if __name__ == "__main__":
+
+    stock_prices_predictor_tool("AAPL")
