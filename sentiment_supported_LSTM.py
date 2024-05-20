@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import layers
+from tensorflow.keras import initializers
+from tensorflow.keras import regularizers
 from pandas_datareader import data as pdr
 import yfinance as yf
 from sklearn.preprocessing import MinMaxScaler
@@ -26,83 +28,6 @@ def str_to_datetime(s):
     return datetime.datetime(year=year, month=month, day=day)
 
 
-def df_to_windowed_df(dataframe, first_date_str, last_date_str, n, scaler=scaler):
-    first_date = str_to_datetime(first_date_str)
-    last_date = str_to_datetime(last_date_str)
-
-    target_date = first_date
-
-    dates = []
-    X, Y = [], []
-
-    last_time = False
-    while True:
-        df_subset = dataframe.loc[:target_date].tail(n+1)
-
-        if len(df_subset) != n+1:
-            print(
-                f'Warning: Window of size {n} is too large for date {target_date}. Skipping this date.')
-        else:
-            # values = df_subset.to_numpy()
-            values = scaler.transform(df_subset)
-            x, y = values[:-1], values[-1]
-
-            dates.append(target_date)
-            X.append(x)
-            Y.append(y)
-
-        next_week = dataframe.loc[target_date:target_date +
-                                  datetime.timedelta(days=7)]
-        next_datetime_str = str(next_week.head(2).tail(1).index.values[0])
-        next_date_str = next_datetime_str.split('T')[0]
-        year_month_day = next_date_str.split('-')
-        year, month, day = year_month_day
-        next_date = datetime.datetime(
-            day=int(day), month=int(month), year=int(year))
-
-        if last_time:
-            break
-
-        target_date = next_date
-
-        if target_date == last_date:
-            last_time = True
-
-    ret_df = pd.DataFrame({})
-    ret_df['Target Date'] = dates
-
-    X = np.array(X)
-    for i in range(0, n):
-        for j in range(df_subset.shape[1]):
-            ret_df[f'Target-{n-i}-{j}'] = X[:, i, j]
-
-    ret_df['Target'] = Y
-
-    return ret_df
-
-
-def windowed_df_to_date_X_y(windowed_dataframe):
-    df_as_np = windowed_dataframe.to_numpy()
-
-    dates = df_as_np[:, 0]
-
-    stock_prices = df_as_np[:, 1:11]  # 10 past stock prices
-    sentiment_scores = df_as_np[:, 11:-1]  # 12 sentiment scores
-
-    # Reshape the data to the form (number of samples, timesteps, number of features)
-    X_stock_prices = stock_prices.reshape(
-        (len(dates), 1, stock_prices.shape[1]))
-    X_sentiment_scores = sentiment_scores.reshape(
-        (len(dates), 1, sentiment_scores.shape[1]))
-
-    # Concatenate the stock prices and sentiment scores along the time step axis
-    X = np.concatenate((X_stock_prices, X_sentiment_scores), axis=2)
-
-    Y = df_as_np[:, -1]
-
-    return dates, X.astype(np.float32), Y.astype(np.float32)
-
-
 def get_price_data(ticker, years=2):
     end = datetime.datetime.now()
     start = end - datetime.timedelta(days=years*365)
@@ -110,7 +35,7 @@ def get_price_data(ticker, years=2):
     return df
 
 
-def getprevious_closest_reports(ticker, date, excel_file="filtered_sentiment_scores.xlsx"):
+def getprevious_closest_reports(ticker, date, excel_file="merged_sentiment_scores.xlsx"):
     # Read the Excel file into a DataFrame
     df = pd.read_excel(excel_file)
 
@@ -135,17 +60,22 @@ def getprevious_closest_reports(ticker, date, excel_file="filtered_sentiment_sco
 
 def train_model(X_train, y_train, X_val, y_val, ticker):
     model = Sequential([layers.Input((X_train.shape[1], X_train.shape[2])),
-                        layers.LSTM(128),
-                        layers.Dense(64, activation='relu'),
-                        layers.Dense(1)])
+                        layers.LSTM(64),
+                        # layers.Dropout(0.2),
+                        layers.Dense(32, activation='relu', kernel_initializer=initializers.LecunNormal(
+                        ), bias_initializer=initializers.LecunNormal()),
+                        layers.Dense(1, kernel_regularizer=regularizers.l1_l2(l1=0.001, l2=0.01))])
     model.compile(loss='mse',
-                  optimizer=Adam(learning_rate=0.01),
+                  optimizer=Adam(learning_rate=0.001),
                   metrics=['mean_absolute_error'])
-    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=100)
+    model.fit(X_train, y_train, validation_data=(
+        X_val, y_val), epochs=200, batch_size=32)
+    history = model.fit(X_train, y_train, validation_data=(
+        X_val, y_val), epochs=200, batch_size=32)
 
     # Save the model
     model.save(f'models/lstm_sentiment_filtered/{ticker}.keras')
-    return model
+    return model, history
 
 
 def df_to_X_y(df, window_size=10):
@@ -162,10 +92,15 @@ def df_to_X_y(df, window_size=10):
 
 def main(ticker, scaler=scaler):
     global eval_data
-    price_data = get_price_data(ticker)
+    price_data = get_price_data(ticker, years=5)  # set year here
 
     # Create a new DataFrame that only contains the 'Close' column
     price_data = price_data[['Close']].copy()
+
+    scaled_data = scaler.fit_transform(price_data)
+
+    price_data = pd.DataFrame(
+        scaled_data, columns=['Close'], index=price_data.index)
 
     # Add the report scores to each row in the price DataFrame
     for i in range(len(price_data)):
@@ -196,30 +131,38 @@ def main(ticker, scaler=scaler):
     print("🟢", Y)
     print("🟢", Y.shape)
 
-    # Create a StandardScaler instance
-    scaler_X = MinMaxScaler()
-    scaler_Y = MinMaxScaler()
-
-    # Fit the scaler to the data and transform the data
-    # Reshape X to 2D
-    X_2D = X.reshape(-1, X.shape[-1])
-
-    # Scale the data
-    X_2D = scaler.fit_transform(X_2D)
-
-    # Reshape X back to 3D
-    X = X_2D.reshape(X.shape)
-    Y = scaler_Y.fit_transform(Y.reshape(-1, 1))
-
     # Split the data into training, validation, and test sets
-    split_index1 = int(len(X) * 0.8)
-    split_index2 = int(len(X) * 0.9)
+    split_index1 = int(len(X) * 0.675)  # 67.5% for training
+    split_index2 = int(len(X) * 0.9)  # 22.5% for validation, 10% for testing
     X_train, y_train = X[:split_index1], Y[:split_index1]
-    X_val, y_val = X[split_index1:split_index2], Y[split_index1:split_index2]
-    X_test, y_test = X[split_index2:], Y[split_index2:]
+    X_test, y_test = X[split_index1:split_index2], Y[split_index1:split_index2]
+    X_val, y_val = X[split_index2:], Y[split_index2:]
 
     # Train the model
-    model = train_model(X_train, y_train, X_val, y_val, ticker)
+    model, history = train_model(X_train, y_train, X_val, y_val, ticker)
+
+    # Plotting the learning curves
+    plt.figure(figsize=(12, 4))
+
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['loss'], label='Training Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Training and Validation Losses')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['mean_absolute_error'], label='Training MAE')
+    plt.plot(history.history['val_mean_absolute_error'],
+             label='Validation MAE')
+    plt.title('Training and Validation MAE')
+    plt.xlabel('Epoch')
+    plt.ylabel('MAE')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
 
     # Get the predictions
     predictions = model.predict(X_test)
@@ -236,13 +179,13 @@ def main(ticker, scaler=scaler):
     new_row = pd.DataFrame({'ticker': [ticker], 'loss': [test_loss], 'mae': [
                            test_mae], 'mape': [test_mape], 'r2': [test_r2]})
     # Append the new row to the CSV file
-    new_row.to_csv('filtered_model_evaluations.csv', mode='a',
+    new_row.to_csv('filtered_model_evaluations2.csv', mode='a',
                    header=False, index=False)
 
     # Inverse transform y_test, y_val, and the predictions
-    y_test = scaler_Y.inverse_transform(y_test)
-    y_val = scaler_Y.inverse_transform(y_val)
-    predictions = scaler_Y.inverse_transform(predictions)
+    y_test = scaler.inverse_transform(y_test.reshape(-1, 1))
+    y_val = scaler.inverse_transform(y_val.reshape(-1, 1))
+    predictions = scaler.inverse_transform(predictions.reshape(-1, 1))
 
     # Print out the predicted and actual prices
     for i in range(len(predictions)):
@@ -250,25 +193,25 @@ def main(ticker, scaler=scaler):
             f"Predicted price vs actual: {predictions[i][0]}, {y_test[i][0]}")
 
     # Plot the predicted vs actual prices
-    # plt.figure(figsize=(10, 5))
-    # plt.plot(predictions, label='Predicted')
-    # plt.plot(y_test, label='Actual')
-    # plt.title(f'Predicted vs Actual Prices for {ticker}')
-    # plt.xlabel('Time')
-    # plt.ylabel('Price')
-    # plt.legend()
-    # plt.show()
+    plt.figure(figsize=(10, 5))
+    plt.plot(predictions, label='Predicted')
+    plt.plot(y_test, label='Actual')
+    plt.title(f'Predicted vs Actual Prices for {ticker}')
+    plt.xlabel('Time')
+    plt.ylabel('Price')
+    plt.legend()
+    plt.show()
 
 
 if __name__ == "__main__":
 
-    if not os.path.isfile('filtered_model_evaluations.csv'):
+    if not os.path.isfile('filtered_model_evaluations2.csv'):
         eval_data = pd.DataFrame(
             columns=['ticker', 'loss', 'mae', 'mape', 'r2'])
         # Write the DataFrame to an Excel file
-        eval_data.to_csv('filtered_model_evaluations.csv', index=False)
+        eval_data.to_csv('filtered_model_evaluations2.csv', index=False)
 
-    with open('tickers.txt', 'r') as file:
+    with open('tickers_test.txt', 'r') as file:
         tickers = file.read().splitlines()
 
     for ticker in tickers:

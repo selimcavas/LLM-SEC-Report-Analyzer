@@ -98,18 +98,14 @@ stock_price_prediction_page = '''
 
             Question: {question} 
 
-        Extract ticker and prediction days from the question. 
+        Extract ticker from the question. 
 
             ticker: Ticker for stock price prediction. For example, AAPL for Apple Inc.
-
-            days: Prediction period for stock price, only a single integer value showing the number of days.
-            For example, "1", "3", etc.
 
         Return a $JSON_BLOB that looks like this:
         ```
             {{
-                "ticker": "AAPL",
-                "days": "3"
+                "ticker": "AAPL"
             }}
         ```
 
@@ -226,16 +222,17 @@ cumulative_returns_chart = '''
 
 stock_price_prediction_analysis = '''
             You are an expert financial analyzer, look at the following stock price change for the company with ticker: {ticker}
-            The change given to you was gathered by the sentiment score supported LSTM model and the user asked to predict the next {days} days.
+            The change given to you was gathered by the sentiment score supported LSTM model and the user asked to predict the next days stock price.
             
-            The stock price change is as follows: {price_change}
             Last actual date: {last_actual_date}
-            Last predicted date: {last_predicted_date}
             Last actual price: {last_actual_price}
-            Last predicted price: {last_predicted_price}
-            Sentiment score: {sentiment_score}
+            Predicted price: {last_predicted_price}
+            The stock price change: {price_change}
+            Average positive sentiment score: {positive_average_sentiment_score}
+            Average negative sentiment score: {negative_average_sentiment_score}
+            Average neutral sentiment score: {neutral_average_sentiment_score}
 
-            Form a brief maximum 2 sentence analysis according to the given data. Provide change with percent and also make sure all data is human readable.
+            Form a brief maximum 2 sentence analysis according to the given data. Provide change with percent and also show each sentiment score values.
 
             Begin!
 

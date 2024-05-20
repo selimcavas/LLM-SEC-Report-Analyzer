@@ -8,7 +8,12 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_percentage_error, r2_score
 import os
 from tensorflow.keras.models import load_model
+from prompts.prompt_templates import stock_price_prediction_analysis
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_community.chat_models.fireworks import ChatFireworks
+from langchain.schema.output_parser import StrOutputParser
 
+MODEL_ID = "accounts/fireworks/models/mixtral-8x7b-instruct"
 
 yf.pdr_override()
 scaler = MinMaxScaler()
@@ -97,7 +102,7 @@ def windowed_df_to_date_X_y(windowed_dataframe):
     return dates, X.astype(np.float32), Y.astype(np.float32)
 
 
-def get_price_data(ticker, days=90):
+def get_price_data(ticker, days=15):
     end = datetime.datetime.now()
     start = end - datetime.timedelta(days=days)
     df = pdr.get_data_yahoo(ticker, start, end)
@@ -138,16 +143,30 @@ def df_to_X_y(df, window_size=10):
         y.append(label)
     return np.array(X), np.array(y)
 
+
 def stock_prices_predictor_tool(ticker):
 
     price_data = get_price_data(ticker)
     price_data = price_data[['Close']].copy()
 
+    last_actual_date = price_data.index[-1]
+    last_actual_price = price_data['Close'][-1]
+
+    # last_day_actual_price = price_data
+
+    # Create a StandardScaler instance
+    scaler = MinMaxScaler()
+
+    scaled_data = scaler.fit_transform(price_data)
+
+    price_data = pd.DataFrame(
+        scaled_data, columns=['Close'], index=price_data.index)
 
     # Add the report scores to each row in the price DataFrame
     total_pos = 0
     total_neg = 0
     total_neutral = 0
+    flag = False
     for i in range(len(price_data)):
         print(
             f"\rProcessing row {i+1}/{len(price_data)} for ticker: {ticker}", end="")
@@ -159,6 +178,7 @@ def stock_prices_predictor_tool(ticker):
         if len(report_data) < 12:  # Each report has 3 values (positive, negative, neutral)
             print(f"Skipping {ticker} due to insufficient reports.")
             return
+        flag = i == len(price_data) - 1
 
         for j in range(4):  # There are 4 reports
             price_data.loc[target_date_in_row,
@@ -167,69 +187,32 @@ def stock_prices_predictor_tool(ticker):
                            f'report_{j}_neg'] = report_data[j*3 + 1]
             price_data.loc[target_date_in_row,
                            f'report_{j}_neutral'] = report_data[j*3 + 2]
-            # Add the sentiment scores to the totals
-            total_pos += report_data[j*3]
-            total_neg += report_data[j*3 + 1]
-            total_neutral += report_data[j*3 + 2]
-
-    # Calculate the average sentiment scores
-    avg_pos = total_pos / 4
-    avg_neg = total_neg / 4
-    avg_neutral = total_neutral / 4
-
-    # Calculate the average sentiment score
-    avg_sentiment_score = (avg_pos + avg_neg + avg_neutral) / 3
-
+            if flag:
+                # Add the sentiment scores to the totals
+                total_pos += report_data[j*3]
+                total_neg += report_data[j*3 + 1]
+                total_neutral += report_data[j*3 + 2]
 
     X, Y = df_to_X_y(price_data, 10)
 
     print("🔵", X)
     print("🔴", X.shape)
-    
-    # Create a StandardScaler instance
-    scaler = MinMaxScaler()
 
-
-    # Fit the scaler to the data and transform the data
-    # Reshape X to 2D
-    X_2D = X.reshape(-1, X.shape[-1])
-
-    # Scale the data
-    X_2D = scaler.fit_transform(X_2D)
-
-    # Reshape X back to 3D
-    X = X_2D.reshape(X.shape)
-
-    ## Get the model from models/lstm_sentiment_filtered
+    # Get the model from models/lstm_sentiment_filtered
     model = load_model(f"models/lstm_sentiment_filtered/{ticker}.keras")
     # Get the predictions
     last_sequence = np.expand_dims(X[-1], axis=0)
     print("🔵", last_sequence)
+    print("🔵🔵", last_sequence[0][0][1])
     predictions = model.predict(last_sequence)
-    print("🟢", predictions)
-    quit()
-    ############################################################################################################
-
-    predicted_dates = [(last_date + dt.timedelta(days=i+1)).strftime('%Y-%m-%d') for i in range(days)]
-    predicted_data = list(zip(predicted_dates, predicted_prices.flatten()))
-    
-    # Combine the actual and predicted data
-    output = price_data + predicted_data
-
-    # Convert the lists to DataFrames
-    actual_data_df = pd.DataFrame(price_data, columns=['date', 'price'])
-    predicted_data_df = pd.DataFrame(predicted_data, columns=['date', 'price'])
+    predictions = scaler.inverse_transform(predictions.reshape(-1, 1))
+    prediction = predictions[0][0]
+    print("🟢", prediction)
+    print(last_actual_date)
 
     # Calculate the price change
-    price_change = (predicted_data_df['price'].values[-1] -
-                    actual_data_df['price'].values[-1]) / actual_data_df['price'].values[-1] * 100
-
-    # Get the last actual and predicted dates and prices
-    last_actual_date = actual_data_df['date'].values[-1]
-    last_predicted_date = predicted_data_df['date'].values[-1]
-
-    last_actual_price = actual_data_df['price'].values[-1]
-    last_predicted_price = predicted_data_df['price'].values[-1]
+    price_change = ((prediction - last_actual_price)/last_actual_price) * 100
+    print(price_change)
 
     template = stock_price_prediction_analysis
 
@@ -251,24 +234,17 @@ def stock_prices_predictor_tool(ticker):
         "ticker": ticker,
         "price_change": price_change,
         "last_actual_date": last_actual_date,
-        "last_predicted_date": last_predicted_date,
         "last_actual_price": last_actual_price,
-        "last_predicted_price": last_predicted_price,
-        "sentiment_score": avg_sentiment_score
+        "last_predicted_price": prediction,
+        "positive_average_sentiment_score": total_pos / 4,
+        "negative_average_sentiment_score": total_neg / 4,
+        "neutral_average_sentiment_score": total_neutral / 4
 
     }).replace("$", "\$")
 
-    # Convert the output to a DataFrame
-    output_df = pd.DataFrame(output, columns=['date', 'prices'])
+    print(llm_comment)
+    return llm_comment
 
-    # Convert the 'date' column to datetime
-    output_df['date'] = pd.to_datetime(output_df['date'])
-
-    # Set the 'date' column as the index
-    output_df.set_index('date', inplace=True)
-
-    return output_df, llm_comment
 
 if __name__ == "__main__":
     stock_prices_predictor_tool("AAPL")
-

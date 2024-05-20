@@ -70,19 +70,9 @@ if user_query is not None and user_query != "":
             "question": user_query
         })
 
-        print(json_blob)
-
-        days = int(json_blob.get("days"))
         ticker = json_blob.get("ticker")
 
-        df, llm_comment = stock_prices_predictor_tool(
-            days, ticker)
-
-        try:
-            st.line_chart(df)
-            st.session_state.chat_history_stock_prediction.append(df)
-        except ValueError:
-            print("Couldn't create DataFrame")
+        llm_comment = stock_prices_predictor_tool(ticker)
 
         st.write(llm_comment)
 
