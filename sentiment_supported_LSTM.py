@@ -70,12 +70,12 @@ def train_model(X_train, y_train, X_val, y_val, ticker):
                   metrics=['mean_absolute_error'])
     model.fit(X_train, y_train, validation_data=(
         X_val, y_val), epochs=200, batch_size=32)
-    history = model.fit(X_train, y_train, validation_data=(
-        X_val, y_val), epochs=200, batch_size=32)
+    # history = model.fit(X_train, y_train, validation_data=(
+    #     X_val, y_val), epochs=200, batch_size=32)
 
     # Save the model
     model.save(f'models/lstm_sentiment_filtered/{ticker}.keras')
-    return model, history
+    return model
 
 
 def df_to_X_y(df, window_size=10):
@@ -139,30 +139,30 @@ def main(ticker, scaler=scaler):
     X_val, y_val = X[split_index2:], Y[split_index2:]
 
     # Train the model
-    model, history = train_model(X_train, y_train, X_val, y_val, ticker)
+    model = train_model(X_train, y_train, X_val, y_val, ticker)
 
     # Plotting the learning curves
-    plt.figure(figsize=(12, 4))
+    # plt.figure(figsize=(12, 4))
 
-    plt.subplot(1, 2, 1)
-    plt.plot(history.history['loss'], label='Training Loss')
-    plt.plot(history.history['val_loss'], label='Validation Loss')
-    plt.title('Training and Validation Losses')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
+    # plt.subplot(1, 2, 1)
+    # plt.plot(history.history['loss'], label='Training Loss')
+    # plt.plot(history.history['val_loss'], label='Validation Loss')
+    # plt.title('Training and Validation Losses')
+    # plt.xlabel('Epoch')
+    # plt.ylabel('Loss')
+    # plt.legend()
 
-    plt.subplot(1, 2, 2)
-    plt.plot(history.history['mean_absolute_error'], label='Training MAE')
-    plt.plot(history.history['val_mean_absolute_error'],
-             label='Validation MAE')
-    plt.title('Training and Validation MAE')
-    plt.xlabel('Epoch')
-    plt.ylabel('MAE')
-    plt.legend()
+    # plt.subplot(1, 2, 2)
+    # plt.plot(history.history['mean_absolute_error'], label='Training MAE')
+    # plt.plot(history.history['val_mean_absolute_error'],
+    #          label='Validation MAE')
+    # plt.title('Training and Validation MAE')
+    # plt.xlabel('Epoch')
+    # plt.ylabel('MAE')
+    # plt.legend()
 
-    plt.tight_layout()
-    plt.show()
+    # plt.tight_layout()
+    # plt.show()
 
     # Get the predictions
     predictions = model.predict(X_test)
@@ -179,7 +179,7 @@ def main(ticker, scaler=scaler):
     new_row = pd.DataFrame({'ticker': [ticker], 'loss': [test_loss], 'mae': [
                            test_mae], 'mape': [test_mape], 'r2': [test_r2]})
     # Append the new row to the CSV file
-    new_row.to_csv('filtered_model_evaluations2.csv', mode='a',
+    new_row.to_csv('filtered_model_evaluations.csv', mode='a',
                    header=False, index=False)
 
     # Inverse transform y_test, y_val, and the predictions
@@ -193,25 +193,25 @@ def main(ticker, scaler=scaler):
             f"Predicted price vs actual: {predictions[i][0]}, {y_test[i][0]}")
 
     # Plot the predicted vs actual prices
-    plt.figure(figsize=(10, 5))
-    plt.plot(predictions, label='Predicted')
-    plt.plot(y_test, label='Actual')
-    plt.title(f'Predicted vs Actual Prices for {ticker}')
-    plt.xlabel('Time')
-    plt.ylabel('Price')
-    plt.legend()
-    plt.show()
+    # plt.figure(figsize=(10, 5))
+    # plt.plot(predictions, label='Predicted')
+    # plt.plot(y_test, label='Actual')
+    # plt.title(f'Predicted vs Actual Prices for {ticker}')
+    # plt.xlabel('Time')
+    # plt.ylabel('Price')
+    # plt.legend()
+    # plt.show()
 
 
 if __name__ == "__main__":
 
-    if not os.path.isfile('filtered_model_evaluations2.csv'):
+    if not os.path.isfile('filtered_model_evaluations.csv'):
         eval_data = pd.DataFrame(
             columns=['ticker', 'loss', 'mae', 'mape', 'r2'])
         # Write the DataFrame to an Excel file
-        eval_data.to_csv('filtered_model_evaluations2.csv', index=False)
+        eval_data.to_csv('filtered_model_evaluations.csv', index=False)
 
-    with open('tickers_test.txt', 'r') as file:
+    with open('tickers.txt', 'r') as file:
         tickers = file.read().splitlines()
 
     for ticker in tickers:
