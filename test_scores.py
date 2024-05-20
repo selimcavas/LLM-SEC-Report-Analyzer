@@ -10,9 +10,9 @@ filtered_model_data = pd.read_csv('filtered_model_evaluations.csv')
 vanilla_lstm_data = vanilla_lstm_data.drop('ticker', axis=1)
 filtered_model_data = filtered_model_data.drop('ticker', axis=1)
 
-# Filter out negative R2 values
-vanilla_lstm_data = vanilla_lstm_data[vanilla_lstm_data['r2'] > 0]
-filtered_model_data = filtered_model_data[filtered_model_data['r2'] > 0]
+# Filter out mape values
+vanilla_lstm_data = vanilla_lstm_data[vanilla_lstm_data['mape'] < 1]
+filtered_model_data = filtered_model_data[filtered_model_data['mape'] < 1]
 
 # Calculate the average of the columns in each DataFrame
 vanilla_lstm_avg = vanilla_lstm_data.mean()
