@@ -102,7 +102,7 @@ def windowed_df_to_date_X_y(windowed_dataframe):
     return dates, X.astype(np.float32), Y.astype(np.float32)
 
 
-def get_price_data(ticker, days=15):
+def get_price_data(ticker, days=30):
     end = datetime.datetime.now()
     start = end - datetime.timedelta(days=days)
     df = pdr.get_data_yahoo(ticker, start, end)
