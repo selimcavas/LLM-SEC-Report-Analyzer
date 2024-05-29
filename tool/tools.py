@@ -401,7 +401,7 @@ def stock_prices_predictor_tool(ticker):
     llm_comment = trend_change_comment.invoke({
         "ticker": ticker,
         "price_change": price_change,
-        "last_actual_date": last_actual_date,
+        "last_actual_date": str(last_actual_date),
         "last_actual_price": last_actual_price,
         "last_predicted_price": prediction,
         "positive_average_sentiment_score": total_pos / 4,

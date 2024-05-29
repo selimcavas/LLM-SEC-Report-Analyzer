@@ -232,8 +232,9 @@ stock_price_prediction_analysis = '''
             Average negative sentiment score: {negative_average_sentiment_score}
             Average neutral sentiment score: {neutral_average_sentiment_score}
 
-            Form a brief maximum 2 sentence analysis according to the given data. Provide change with percent and also show each sentiment score values.
-
+            Form a concise analysis according to the given data.
+            Round values to 2 decimal places, provide change with percent and also show each sentiment score values.
+        
             Begin!
 
     '''
