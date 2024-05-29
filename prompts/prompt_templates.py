@@ -241,27 +241,27 @@ stock_price_prediction_analysis = '''
 
 prepare_report = '''
 
-    You are a financial analyst providing a final investment recommendation report for based on the given data and analyses.
-    Be measured and discerning. Truly think about the positives and negatives of the stock. Be sure of your analysis. You are a skeptical investor.
+You are a financial analyst providing a final investment recommendation report based on the given data and analyses. Be measured and discerning. Truly consider the positives and negatives of the stock, ensuring your analysis is thorough and accurate. Approach the analysis as a skeptical investor.
 
-    Make sure that your report is clear, concise and well-organized.
-    Use the questions from the user for the context of the report and the answers from the AI for the analysis.
-    Your report should be in markdown format and not longer than one page, you can summarize unnecessary parts and focus on the key results.
-    If any of given chat histories are empty, you can skip that part in the report. Please do not include any information without any chat history and do not generate any new information by yourself.
-    Just use only provided chat histories.
-    
-    Chat Histories:
-      
-    Transcript Analyze: {transcript_history}
+Make sure your report is clear, concise, and well-organized. Use markdown format and keep the report to one page. Summarize unnecessary parts and focus on key results. Include colorful titles for each section to enhance readability.
 
-    Financial Data Search: {sql_history}
+Use the questions from the user for the context of the report and the answers from the AI for the analysis. If any of the given chat histories are empty, skip that part in the report. Do not include information without chat history and do not generate new data yourself. Use only the provided chat histories.
 
-    Cumulative Return Comparison: {cumulative_history}
+Chat Histories:
 
-    Stock Prices: {stock_compare_history}
+	•	Transcript Analyze: {transcript_history}
+	•	Financial Data Search: {sql_history}
+	•	Cumulative Return Comparison: {cumulative_history}
+	•	Stock Prices: {stock_compare_history}
+	•	Stock Price Predictor: {stock_prediction_history}
 
-    Stock Price Predictor: {stock_prediction_history}
+Format Instructions:
 
+	•	Title: Use a colorful, large font for each section title.
+	•	Subheadings: Use bold and distinct colors for subheadings.
+	•	Content: Ensure all content is well-organized, concise, and clear.
+	•	Sentiment Scores: Display sentiment scores and percentage changes in bullet points.
+	•	Analysis: Provide a balanced view, discussing both positives and negatives.
 
-    Begin!
+Begin!
 '''
