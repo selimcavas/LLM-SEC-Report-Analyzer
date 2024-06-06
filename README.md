@@ -62,7 +62,7 @@ Since LLM models have a knowledge cutoff and cannot access up-to-date informatio
 
 ### Financial Data Search Tool
 
-The `text2SQL` tool enables the LLM to analyze and execute queries over the SQL Database.
+The text2SQL tool enables the LLM to analyze and execute queries over the SQL Database.
 
 ### Earning Call Analyzer Tool
 
