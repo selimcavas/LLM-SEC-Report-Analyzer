@@ -34,7 +34,7 @@ The primary goal of our application is to help financial analysts and investors 
 - Providing stock price visualizations and predictions.
 
 ## User Interface
-![image](https://github.com/selimcavas/LLM-SEC-Report-Analyzer/assets/92586913/5f345251-d34e-42e6-96c9-13a455880ba6)
+![image](https://github.com/selimcavas/LLM-SEC-Report-Analyzer/assets/92586913/0ca52ce5-b97c-46ff-ac57-9047f22b3eec)
 
 Our application features a conversation-based chatbot with a graphical user interface (GUI), enabling users to extract data from the following resources:
 - **Yahoo Finance Data:** Income statement, Balance Sheet, and Cash Flow.
